@@ -1,3 +1,5 @@
+//NOTE: Untested, probably invalid code to simply use as a reference point.
+
 #include "MicroBit.h"
 #include <string>
 #include <cmath>
