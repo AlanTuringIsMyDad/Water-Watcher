@@ -2,10 +2,26 @@
 
 MicroBit uBit;
 
+void displayHello() {
+    uBit.serial.send("Begin loop\n");
+    while (1) { // loop for ever
+        uBit.serial.send("HELLO WORLD!\n");
+        int rtn = uBit.display.scrollAsync("WHY HELLO THERE");
+        if (rtn == MICROBIT_OK) {
+            uBit.serial.send("Display OK\n");
+        } else if (rtn == MICROBIT_BUSY) {
+            uBit.serial.send("Display Busy\n");
+        } else { // error
+            uBit.serial.send("Invalid param\n");
+        }
+        uBit.sleep(1000); // wait 1sec and loop to try and display again
+    }
+}
+
 int main() {
- uBit.init();
- uBit.display.scroll("Hello World!");
- release_fiber();
+    uBit.init();
+    create_fiber(displayHello); // create fiber and schedule it.
+    release_fiber(); // "release the fibers!!"
 }
 
 //NOTE: Untested, probably invalid code to simply use as a reference point.
