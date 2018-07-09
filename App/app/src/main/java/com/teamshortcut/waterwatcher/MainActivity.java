@@ -1,5 +1,12 @@
 package com.teamshortcut.waterwatcher;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -18,7 +25,17 @@ import android.view.ViewGroup;
 
 import android.widget.TextView;
 
+@RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
+
+    public static String UARTSERVICE_SERVICE_UUID = "6E400001B5A3F393E0A9E50E24DCCA9E";
+    public static String UART_RX_CHARACTERISTIC_UUID = "6E400002B5A3F393E0A9E50E24DCCA9E";
+    public static String UART_TX_CHARACTERISTIC_UUID = "6E400003B5A3F393E0A9E50E24DCCA9E";
+
+    private final static int REQUEST_ENABLE_BT = 1;
+
+    final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+    BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -58,6 +75,12 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+            Intent enableBtIntent =
+                    new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        }
 
     }
 
