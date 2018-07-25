@@ -4,6 +4,9 @@
 microbit/build
 microbit/yotta_modules
 microbit/yotta_targets
+final.py
+bluetooth.cpp
+reset.bat
 
 # Created by https://www.gitignore.io/api/androidstudio
 
