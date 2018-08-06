@@ -23,5 +23,4 @@ int main() {
     new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
 
     release_fiber(); // "release the fibers!!"
->>>>>>> Stashed changes
 }
