@@ -4,6 +4,8 @@
 microbit/build
 microbit/yotta_modules
 microbit/yotta_targets
+final.py
+reset.bat
 
 # Created by https://www.gitignore.io/api/androidstudio
 

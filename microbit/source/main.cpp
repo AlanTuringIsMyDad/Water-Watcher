@@ -1,4 +1,5 @@
 #include "MicroBit.h"
+<<<<<<< Updated upstream
 #include "MicroBitUARTService.h"
 
 MicroBit uBit;
@@ -91,4 +92,30 @@ int main()
     // Simply release this fiber, which will mean we enter the scheduler. Worse case, we then
     // sit in the idle task forever, in a power efficient sleep.
     release_fiber();
+=======
+MicroBit uBit;
+
+void onConnected(MicroBitEvent)
+{
+    uBit.display.print("C");
+}
+
+void onDisconnected(MicroBitEvent)
+{
+    uBit.display.print("D");
+}
+
+int main() {
+    uBit.init();
+    //create_fiber(reset); // create fiber and schedule it.
+
+    uBit.display.scroll("Start");
+
+    uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_CONNECTED, onConnected);
+    uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_DISCONNECTED, onDisconnected);
+
+    new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
+
+    release_fiber(); // "release the fibers!!"
+>>>>>>> Stashed changes
 }
