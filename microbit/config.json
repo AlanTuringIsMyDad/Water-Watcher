@@ -3,10 +3,7 @@
         "bluetooth": {
             "enabled": 1,
             "pairing_mode": 1,
-<<<<<<< Updated upstream
-=======
             "security_level": "SECURITY_MODE_ENCRYPTION_NO_MITM",
->>>>>>> Stashed changes
             "private_addressing": 0,
             "open": 0,
             "whitelist": 1,
@@ -16,12 +13,7 @@
             "event_service": 0,
             "device_info_service": 1
         },
-<<<<<<< Updated upstream
         "nested_heap_proportion": 0.50,
         "gatt_table_size": "0x700"
-=======
-        "gatt_table_size": "0x700",
-        "nested_heap_proportion": 0.50
->>>>>>> Stashed changes
     }
 }
