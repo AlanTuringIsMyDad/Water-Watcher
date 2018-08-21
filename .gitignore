@@ -7,10 +7,13 @@ microbit/yotta_targets
 final.py
 reset.bat
 
-# Created by https://www.gitignore.io/api/androidstudio
-
 ### AndroidStudio ###
 # Covers files to be ignored for android development using Android Studio.
+
+pseudocode.java
+android.java
+
+# Created by https://www.gitignore.io/api/androidstudio
 
 # Built application files
 App/*.apk

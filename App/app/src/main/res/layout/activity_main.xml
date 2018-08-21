@@ -41,6 +41,6 @@
         android:layout_height="wrap_content"
         android:layout_gravity="end|bottom"
         android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@android:drawable/ic_dialog_email" />
+        app:srcCompat="@drawable/baseline_bluetooth_white_48" />
 
 </android.support.design.widget.CoordinatorLayout>

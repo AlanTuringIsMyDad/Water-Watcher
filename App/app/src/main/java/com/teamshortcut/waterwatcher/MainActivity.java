@@ -1,5 +1,6 @@
 package com.teamshortcut.waterwatcher;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -9,10 +10,12 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
@@ -29,6 +32,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.UUID;
 
@@ -53,21 +57,35 @@ public class MainActivity extends AppCompatActivity {
     private ViewPager mViewPager;
 
     //Bluetooth constants
+    //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
     public static String BLE_SIGNATURE_UUID_BASE_START = "0000";
     public static String BLE_SIGNATURE_UUID_BASE_END = "-0000-1000-8000-00805f9b34fb";
-    //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
+
     public static String ACCELEROMETERSERVICE_SERVICE_UUID = "E95D0753251D470AA062FA1922DFA9A8";
     public static String ACCELEROMETERDATA_CHARACTERISTIC_UUID = "E95DCA4B251D470AA062FA1922DFA9A8";
     public static String ACCELEROMETERPERIOD_CHARACTERISTIC_UUID = "E95DFB24251D470AA062FA1922DFA9A8";
     public static String CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "2902";
 
-    //TODO: https://stackoverflow.com/questions/36180407/why-the-address-of-my-bluetoothdevice-changes-every-time-i-relaunch-the-app
     public static String TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E"; //MAC address of the micro:bit
+    
+    //Numerical IDs, used internally
     private final static int REQUEST_ENABLE_BT = 1;
+    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 10;
 
+    //Bluetooth variables
     BluetoothAdapter bluetoothAdapter;
     BluetoothDevice targetDevice;
     BluetoothGatt gatt;
+
+    //Defines what to happen upon a BLE scan
+    public final BluetoothAdapter.LeScanCallback scanCallback = new BluetoothAdapter.LeScanCallback() {
+        @Override
+        public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
+            if(bluetoothDevice.getAddress().equals(TARGET_ADDRESS)){
+                targetDevice = bluetoothDevice;
+            }
+        }
+    };
 
     //TODO: combine both formatUUID functions
     public static UUID formatUUIDShort(String uuid){
@@ -88,7 +106,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void processData(byte[] value) {
-        Log.v("Recieved data:", String.valueOf(value));
+        Log.v("Received data:", String.valueOf(value));
+    }
+
+    //Called after a request for an Android permission
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_REQUEST_COARSE_LOCATION: {
+                //If request is cancelled, the result arrays are empty
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //Permission was granted, start the Bluetooth scan
+                    bluetoothAdapter.startLeScan(scanCallback);
+                } else {
+                    //Permission was denied
+                    Toast.makeText(getApplicationContext(), R.string.location_request, Toast.LENGTH_LONG).show();
+                }
+            }
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -104,18 +139,7 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
-        BluetoothAdapter.LeScanCallback scanCallback = new BluetoothAdapter.LeScanCallback() {
-            @Override
-            public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-                if(bluetoothDevice.getAddress() == TARGET_ADDRESS){
-                    targetDevice = bluetoothDevice;
-                }
-            }
-        };
-
-        bluetoothAdapter.startLeScan(scanCallback);
-
-        //TODO: find UUID parallels (which one corresponds to which?) particularly the CLIENT_CONFIG UUID
+        //Defines what to do when the device is connected; handles discovering and interacting with BLE services
         final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -149,6 +173,13 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
+        }
+        else{
+           Toast.makeText(getApplicationContext(), R.string.old_version_location_message, Toast.LENGTH_LONG).show();
+        }
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -167,11 +198,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (targetDevice == null){
-                    Snackbar.make(view, "No corresponding micro:bit found", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    Snackbar.make(view, R.string.no_microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
                 }
                 else{
-                    Snackbar.make(view, "micro:bit found", Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                    gatt = targetDevice.connectGatt(MainActivity.this, true, gattCallback); //TODO: "this" may be incorrect, possible that gattCallback should not be final
+                    Snackbar.make(view, R.string.microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    gatt = targetDevice.connectGatt(MainActivity.this, true, gattCallback);
                 }
             }
         });
@@ -229,6 +260,7 @@ public class MainActivity extends AppCompatActivity {
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
             TextView textView = (TextView) rootView.findViewById(R.id.section_label);
+            Log.v("Section number", Integer.toString(getArguments().getInt(ARG_SECTION_NUMBER)));
             textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
             return rootView;
         }
@@ -253,8 +285,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public int getCount() {
-            // Show 3 total pages.
-            return 3;
+            // Show 2 total pages.
+            return 2;
         }
     }
 }

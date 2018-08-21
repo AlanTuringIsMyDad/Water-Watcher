@@ -2,4 +2,8 @@
     <string name="app_name">Water Watcher</string>
     <string name="action_settings">Settings</string>
     <string name="section_format">Hello World from section: %1$d</string>
+    <string name="location_request">Location permission is required to make Bluetooth connections: please restart the app and grant location permission to continue.</string>
+    <string name="old_version_location_message">This app requires location permissions to allow Bluetooth to function correctly. If the app is not working, please ensure location permissions have been granted.</string>
+    <string name="microbit_found">micro:bit found</string>
+    <string name="no_microbit_found">No corresponding micro:bit found</string>
 </resources>
