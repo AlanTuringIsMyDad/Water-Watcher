@@ -40,7 +40,6 @@ import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
-
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
      * fragments for each of the sections. We use a
@@ -56,15 +55,17 @@ public class MainActivity extends AppCompatActivity {
      */
     private ViewPager mViewPager;
 
-    //Bluetooth constants
+    //BLUETOOTH CONSTANTS
+
     //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
     public static String BLE_SIGNATURE_UUID_BASE_START = "0000";
     public static String BLE_SIGNATURE_UUID_BASE_END = "-0000-1000-8000-00805f9b34fb";
 
+    //Each Service has Characteristics, which are used to read/write data
     public static String ACCELEROMETERSERVICE_SERVICE_UUID = "E95D0753251D470AA062FA1922DFA9A8";
     public static String ACCELEROMETERDATA_CHARACTERISTIC_UUID = "E95DCA4B251D470AA062FA1922DFA9A8";
-    public static String ACCELEROMETERPERIOD_CHARACTERISTIC_UUID = "E95DFB24251D470AA062FA1922DFA9A8";
-    public static String CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "2902";
+    //public static String ACCELEROMETERPERIOD_CHARACTERISTIC_UUID = "E95DFB24251D470AA062FA1922DFA9A8";
+    public static String CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "2902"; //Used to indicate to the micro:bit that we would like to interact with BLE services
 
     public static String TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E"; //MAC address of the micro:bit
     
@@ -75,13 +76,13 @@ public class MainActivity extends AppCompatActivity {
     //Bluetooth variables
     BluetoothAdapter bluetoothAdapter;
     BluetoothDevice targetDevice;
-    BluetoothGatt gatt;
+    BluetoothGatt gattClient; //The GATT CLient is what scans and requests data over BLE; in this case, the Android device
 
     //Defines what to happen upon a BLE scan
     public final BluetoothAdapter.LeScanCallback scanCallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-            if(bluetoothDevice.getAddress().equals(TARGET_ADDRESS)){
+            if(bluetoothDevice.getAddress().equals(TARGET_ADDRESS)){ //Scans for the target micro:bit device until it is found
                 targetDevice = bluetoothDevice;
             }
         }
@@ -94,14 +95,10 @@ public class MainActivity extends AppCompatActivity {
         return UUID.fromString(formattedUUID);
     }
 
-    //Used to insert "-"s into the UUID
+    //Used to insert "-"s into the UUID so it is in the format the micro:bit expects
     public static UUID formatUUID(String uuid) {
         String formattedUUID = uuid;
-        formattedUUID = uuid.substring(0,8) + "-"
-                + uuid.substring(8,12) + "-"
-                + uuid.substring(12,16) + "-"
-                + uuid.substring(16,20) + "-"
-                + uuid.substring(20,32);
+        formattedUUID = uuid.substring(0,8) + "-" + uuid.substring(8,12) + "-" + uuid.substring(12,16) + "-" + uuid.substring(16,20) + "-" + uuid.substring(20,32);
         return UUID.fromString(formattedUUID);
     }
 
@@ -129,13 +126,13 @@ public class MainActivity extends AppCompatActivity {
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //Initialises up BLE objects
         final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         bluetoothAdapter = bluetoothManager.getAdapter();
 
         //Ensures bluetooth is enabled
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent =
-                    new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
@@ -143,19 +140,22 @@ public class MainActivity extends AppCompatActivity {
         final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                if (newState == STATE_CONNECTED){
-                    gatt.discoverServices();
+                if (newState == STATE_CONNECTED){ //Once a device is connected...
+                    gatt.discoverServices(); //...discover its services
                 }
             }
 
             @Override
             public void onServicesDiscovered(BluetoothGatt gatt, int status){
                 boolean enabled = true;
+                //Gets the Accelerometer Data characteristic from the Accelerometer service...
+                //...which is in turn gotten from the GATT Client (the mobile phone)
                 BluetoothGattCharacteristic characteristic = gatt.getService(formatUUID(ACCELEROMETERSERVICE_SERVICE_UUID)).getCharacteristic(formatUUID(ACCELEROMETERDATA_CHARACTERISTIC_UUID));
+                //Sets up notifications for the Accelerometer Data characteristic. When the characteristic has changed (ie. data has been sent), onCharacteristicChanged() will be called
                 gatt.setCharacteristicNotification(characteristic, enabled);
 
+                //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
                 BluetoothGattDescriptor descriptor = characteristic.getDescriptor(formatUUIDShort(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID));
-
                 descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                 gatt.writeDescriptor(descriptor);
             }
@@ -163,20 +163,21 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
                 BluetoothGattCharacteristic characteristic = gatt.getService(formatUUID(ACCELEROMETERSERVICE_SERVICE_UUID)).getCharacteristic(formatUUID(ACCELEROMETERDATA_CHARACTERISTIC_UUID));
-                characteristic.setValue(new byte[]{1, 1});
+                characteristic.setValue(new byte[]{1, 1}); //Sends a simple byte array to tell the micro:bit to start streaming data
                 gatt.writeCharacteristic(characteristic);
             }
 
             @Override
             public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                processData(characteristic.getValue());
+                processData(characteristic.getValue()); //When data has been recieved over BLE, pass it to processData()
             }
         };
 
+        //If running Android M or higher, explictly request location permission (necessary for Bluetooth)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
         }
-        else{
+        else{ //Otherwise, notify the user that location permission must be granted for Bluetooth to function correctly
            Toast.makeText(getApplicationContext(), R.string.old_version_location_message, Toast.LENGTH_LONG).show();
         }
 
@@ -197,12 +198,12 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (targetDevice == null){
+                if (targetDevice == null){ //If targetDevice is null, the micro:bit has not yet been found in the BLE scan
                     Snackbar.make(view, R.string.no_microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
                 }
                 else{
                     Snackbar.make(view, R.string.microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                    gatt = targetDevice.connectGatt(MainActivity.this, true, gattCallback);
+                    gattClient = targetDevice.connectGatt(MainActivity.this, true, gattCallback); //Connects the GATT callback to start receiving data; autoConnect is set to True
                 }
             }
         });
