@@ -12,24 +12,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.view.ViewPager;
-import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,21 +32,6 @@ import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
-    /**
-     * The {@link android.support.v4.view.PagerAdapter} that will provide
-     * fragments for each of the sections. We use a
-     * {@link FragmentPagerAdapter} derivative, which will keep every
-     * loaded fragment in memory. If this becomes too memory intensive, it
-     * may be best to switch to a
-     * {@link android.support.v4.app.FragmentStatePagerAdapter}.
-     */
-    private SectionsPagerAdapter mSectionsPagerAdapter;
-
-    /**
-     * The {@link ViewPager} that will host the section contents.
-     */
-    private ViewPager mViewPager;
-
     //BLUETOOTH CONSTANTS
 
     //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
@@ -75,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
     //Bluetooth variables
     BluetoothAdapter bluetoothAdapter;
     BluetoothDevice targetDevice;
-    BluetoothGatt gattClient; //The GATT CLient is what scans and requests data over BLE; in this case, the Android device
+    BluetoothGatt gattClient; //The GATT Client is what scans and requests data over BLE; in this case, the Android device
 
     //Defines what to happen upon a BLE scan
     public final BluetoothAdapter.LeScanCallback scanCallback = new BluetoothAdapter.LeScanCallback() {
@@ -89,14 +67,14 @@ public class MainActivity extends AppCompatActivity {
 
     //TODO: combine both formatUUID functions
     public static UUID formatUUIDShort(String uuid){
-        String formattedUUID = uuid;
+        String formattedUUID;
         formattedUUID = BLE_SIGNATURE_UUID_BASE_START+uuid+BLE_SIGNATURE_UUID_BASE_END;
         return UUID.fromString(formattedUUID);
     }
 
     //Used to insert "-"s into the UUID so it is in the format the micro:bit expects
     public static UUID formatUUID(String uuid) {
-        String formattedUUID = uuid;
+        String formattedUUID;
         formattedUUID = uuid.substring(0,8) + "-" + uuid.substring(8,12) + "-" + uuid.substring(12,16) + "-" + uuid.substring(16,20) + "-" + uuid.substring(20,32);
         return UUID.fromString(formattedUUID);
     }
@@ -128,11 +106,25 @@ public class MainActivity extends AppCompatActivity {
         short y = convertFromLittleEndianBytes(yBytes);
         short z = convertFromLittleEndianBytes(zBytes);
         Log.d("Data", "Accelerometer Data received: x=" + x + " y=" + y + " z=" + z);
+        displayAccelerometerValues(x, y, z);
+    }
+
+    //Displays the accelerometer data to the screen by updating the TextViews
+    //Runs on the UI thread rather than directly on the Main thread for performance
+    private void displayAccelerometerValues(final short x, final short y, final short z){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                ((TextView) MainActivity.this.findViewById(R.id.x)).setText("X = " + x);
+                ((TextView) MainActivity.this.findViewById(R.id.y)).setText("Y = " + y);
+                ((TextView) MainActivity.this.findViewById(R.id.z)).setText("Z = " + z);
+            }
+        });
     }
 
     //Called after a request for an Android permission
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
             case PERMISSION_REQUEST_COARSE_LOCATION: {
                 //If request is cancelled, the result arrays are empty
@@ -193,11 +185,11 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                processData(characteristic.getValue()); //When data has been recieved over BLE, pass it to processData()
+                processData(characteristic.getValue()); //When data has been received over BLE, pass it to processData()
             }
         };
 
-        //If running Android M or higher, explictly request location permission (necessary for Bluetooth)
+        //If running Android M or higher, explicitly request location permission (necessary for Bluetooth)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
         }
@@ -208,17 +200,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        // Create the adapter that will return a fragment for each of the three
-        // primary sections of the activity.
-        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
 
-        // Set up the ViewPager with the sections adapter.
-        mViewPager = (ViewPager) findViewById(R.id.container);
-        mViewPager.setAdapter(mSectionsPagerAdapter);
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -253,65 +238,5 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    /**
-     * A placeholder fragment containing a simple view.
-     */
-    public static class PlaceholderFragment extends Fragment {
-        /**
-         * The fragment argument representing the section number for this
-         * fragment.
-         */
-        private static final String ARG_SECTION_NUMBER = "section_number";
-
-        public PlaceholderFragment() {
-        }
-
-        /**
-         * Returns a new instance of this fragment for the given section
-         * number.
-         */
-        public static PlaceholderFragment newInstance(int sectionNumber) {
-            PlaceholderFragment fragment = new PlaceholderFragment();
-            Bundle args = new Bundle();
-            args.putInt(ARG_SECTION_NUMBER, sectionNumber);
-            fragment.setArguments(args);
-            return fragment;
-        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-            Log.v("Section number", Integer.toString(getArguments().getInt(ARG_SECTION_NUMBER)));
-            textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
-            return rootView;
-        }
-    }
-
-    /**
-     * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
-     * one of the sections/tabs/pages.
-     */
-    public class SectionsPagerAdapter extends FragmentPagerAdapter {
-
-        public SectionsPagerAdapter(FragmentManager fm) {
-            super(fm);
-        }
-
-        @Override
-        public Fragment getItem(int position) {
-            // getItem is called to instantiate the fragment for the given page.
-            // Return a PlaceholderFragment (defined as a static inner class below).
-            return PlaceholderFragment.newInstance(position + 1);
-        }
-
-        @Override
-        public int getCount() {
-            // Show 2 total pages.
-            return 2;
-        }
     }
 }
