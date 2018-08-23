@@ -15,7 +15,6 @@ import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
@@ -102,8 +101,33 @@ public class MainActivity extends AppCompatActivity {
         return UUID.fromString(formattedUUID);
     }
 
-    private void processData(byte[] value) {
-        Log.v("Received data:", String.valueOf(value));
+    //Used to convert a 2 byte array in Little Endian format to an integer
+    public static short convertFromLittleEndianBytes(byte[] bytes) {
+        //Checks a 2 byte array has been passed to the function
+        if ( bytes == null || bytes.length != 2){
+            return 0;
+        }
+        else{
+            //Converts from a byte array in Little Endian format to a short (signed) and returns that value
+            return java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).getShort();
+        }
+    }
+
+    //Accelerometer data is sent from the micro:bit as a byte array and needs to be converted to a signed integer
+    private void processData(byte[] data) {
+        //BLE data must be split up into the x, y and z values
+        byte[] xBytes = new byte[2];
+        byte[] yBytes = new byte[2];
+        byte[] zBytes = new byte[2];
+        //Copies values from data into x/y/zBytes. System.arraycopy() is used for performance+efficiency
+        System.arraycopy(data, 0, xBytes, 0, 2);
+        System.arraycopy(data, 2, yBytes, 0, 2);
+        System.arraycopy(data, 4, zBytes, 0, 2);
+        //Data is in bytes in Little Endian form, and needs to be converted to an integer
+        short x = convertFromLittleEndianBytes(xBytes);
+        short y = convertFromLittleEndianBytes(yBytes);
+        short z = convertFromLittleEndianBytes(zBytes);
+        Log.d("Data", "Accelerometer Data received: x=" + x + " y=" + y + " z=" + z);
     }
 
     //Called after a request for an Android permission
