@@ -8,4 +8,7 @@ Although the system would be useful for anyone who regularly uses running water,
 # Requirements
 It is important to note that as of 06/08/2018, it is necessary to use v2.0.0-rc9 of the microbit-DAL for the BLE accelerometer service to work, as detailed here https://github.com/lancaster-university/microbit-dal/issues/366
 
+# Usage
 Before using the Bluetooth functionality in the app, please make sure the micro:bit is paired with the phone! Instructions on how to do so can be found here, although with the current version of the program, entering the PIN is not necessary. https://makecode.microbit.org/reference/bluetooth/bluetooth-pairing 
+
+When using the micro:bit program, please firstly calibrate the micro:bit by pressing either button while there are no vibrations (eg. tap is turned off), then pressing again when there are vibrations. (eg. tap is turned on) To connect the app to the micro:bit over BLE, press either button on the micro:bit while the main section of code (checking for vibrations) is running to enter Connection Mode, where the micro:bit will wait for a Bluetooth connection before continuing. If you want to manually exit Connection Mode, simply press either button on the micro:bit again.
