@@ -1,17 +1,19 @@
 ### micro:bit ###
-# Mostly covers yotta files for micro:bit developement. ###
+# Mostly covers yotta files for micro:bit developement.
 
 microbit/build
 microbit/yotta_modules
 microbit/yotta_targets
 final.py
-bluetooth.cpp
 reset.bat
-
-# Created by https://www.gitignore.io/api/androidstudio
 
 ### AndroidStudio ###
 # Covers files to be ignored for android development using Android Studio.
+
+pseudocode.java
+android.java
+
+# Created by https://www.gitignore.io/api/androidstudio
 
 # Built application files
 App/*.apk

@@ -1,0 +1,7 @@
+Testing for available RAM, when trying to combine bluetooth and microbit functionality into main.cpp
+Originally tried to simply add OnConnected and OnDisconnected functions, and add the listeners and Accelerometer service right before creating fibers. Current solution will be in Commits on GitHub.
+
+Before buttons: 3 + 2/16 K
+After buttons: 3 + 2/16 K
+After BLE: 2 + 14/16 K
+After 1 round of checking: 2 + 9/16 K
