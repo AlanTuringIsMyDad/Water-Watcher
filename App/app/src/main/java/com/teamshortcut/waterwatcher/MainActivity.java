@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -26,12 +27,16 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.LegendRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.util.UUID;
 
 import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
+
+//TODO: x axis labels should be a timer (lenght of screen should be maybe 3 seconds?)
+//TODO: http://www.android-graphview.org/zooming-and-scrolling/
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
@@ -134,11 +139,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initialiseGraph(){
-        GraphView graph = (GraphView) findViewById(R.id.graph);
         xSeries = new LineGraphSeries<>();
+        xSeries.setTitle("X");
+        xSeries.setColor(Color.RED);
+
         ySeries = new LineGraphSeries<>();
+        ySeries.setTitle("Y");
+        ySeries.setColor(Color.GREEN);
+
         zSeries = new LineGraphSeries<>();
+        zSeries.setTitle("Z");
+        zSeries.setColor(Color.BLUE);
+
         absoluteSeries = new LineGraphSeries<>();
+        absoluteSeries.setTitle("Absolute Value");
+        absoluteSeries.setColor(Color.YELLOW);
+
+        GraphView graph = (GraphView) findViewById(R.id.graph);
         graph.addSeries(xSeries);
         graph.addSeries(ySeries);
         graph.addSeries(zSeries);
@@ -149,6 +166,8 @@ public class MainActivity extends AppCompatActivity {
         graph.getViewport().setXAxisBoundsManual(true);
         graph.getViewport().setMinX(0);
         graph.getViewport().setMaxX(100);
+        graph.getLegendRenderer().setVisible(true);
+        graph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
 
     //Displays the accelerometer data to the screen by updating the TextViews
