@@ -23,8 +23,11 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.TextView;
 import android.widget.Toast;
+
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.util.UUID;
 
@@ -32,6 +35,18 @@ import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
+    //GRAPH
+
+    private LineGraphSeries<DataPoint> xSeries;
+    private LineGraphSeries<DataPoint> ySeries;
+    private LineGraphSeries<DataPoint> zSeries;
+    private LineGraphSeries<DataPoint> absoluteSeries;
+
+    private int lastXValue = 0;
+    private int lastYValue = 0;
+    private int lastZValue = 0;
+    private int lastAbsoluteValue = 0;
+
     //BLUETOOTH CONSTANTS
 
     //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
@@ -105,8 +120,35 @@ public class MainActivity extends AppCompatActivity {
         short x = convertFromLittleEndianBytes(xBytes);
         short y = convertFromLittleEndianBytes(yBytes);
         short z = convertFromLittleEndianBytes(zBytes);
-        Log.d("Data", "Accelerometer Data received: x=" + x + " y=" + y + " z=" + z);
-        displayAccelerometerValues(x, y, z);
+        int absoluteValue = (int) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
+        Log.d("Data", "Accelerometer Data received: x=" + x + " y=" + y + " z=" + z + "absoluteValue= " + absoluteValue);
+        //displayAccelerometerValues(x, y, z);
+        xSeries.appendData(new DataPoint(lastXValue, x), true, 100);
+        ySeries.appendData(new DataPoint(lastYValue, y), true, 100);
+        zSeries.appendData(new DataPoint(lastZValue, z), true, 100);
+        absoluteSeries.appendData(new DataPoint(lastAbsoluteValue, absoluteValue), true, 100);
+        lastXValue += 1;
+        lastYValue += 1;
+        lastZValue += 1;
+        lastAbsoluteValue += 1;
+    }
+
+    private void initialiseGraph(){
+        GraphView graph = (GraphView) findViewById(R.id.graph);
+        xSeries = new LineGraphSeries<>();
+        ySeries = new LineGraphSeries<>();
+        zSeries = new LineGraphSeries<>();
+        absoluteSeries = new LineGraphSeries<>();
+        graph.addSeries(xSeries);
+        graph.addSeries(ySeries);
+        graph.addSeries(zSeries);
+        graph.addSeries(absoluteSeries);
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setMinY(-1024);
+        graph.getViewport().setMaxY(1774); //As sqrt(1024^2 + 1024^2 + 1024^2) ~= 1774
+        graph.getViewport().setXAxisBoundsManual(true);
+        graph.getViewport().setMinX(0);
+        graph.getViewport().setMaxX(100);
     }
 
     //Displays the accelerometer data to the screen by updating the TextViews
@@ -115,9 +157,9 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                ((TextView) MainActivity.this.findViewById(R.id.x)).setText("X = " + x);
-                ((TextView) MainActivity.this.findViewById(R.id.y)).setText("Y = " + y);
-                ((TextView) MainActivity.this.findViewById(R.id.z)).setText("Z = " + z);
+                //((TextView) MainActivity.this.findViewById(R.id.x)).setText("X = " + x);
+                //((TextView) MainActivity.this.findViewById(R.id.y)).setText("Y = " + y);
+                //((TextView) MainActivity.this.findViewById(R.id.z)).setText("Z = " + z);
             }
         });
     }
@@ -202,6 +244,8 @@ public class MainActivity extends AppCompatActivity {
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        initialiseGraph();
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
