@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -23,15 +24,48 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.TextView;
 import android.widget.Toast;
 
+import com.jjoe64.graphview.DefaultLabelFormatter;
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.LegendRenderer;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
+
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
+//TODO: http://www.android-graphview.org/zooming-and-scrolling/
+//Add graph.getViewport().setScrollable(true); but only on disconnect? Otherwise fatal exception occurs
+//Check for BLE object if null? If not null then disable scroll?
+//TODO: label x axis as time in seconds and y axis as g-force(?)
+
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
+    //GRAPH VARIABLES
+
+    //Used to store the data points that will be displayed to the graph
+    private LineGraphSeries<DataPoint> xSeries;
+    private LineGraphSeries<DataPoint> ySeries;
+    private LineGraphSeries<DataPoint> zSeries;
+    private LineGraphSeries<DataPoint> absoluteSeries;
+
+    long currentTime = 0; //in milliseconds
+
+    //Increments the current time by 1 millisecond
+    Timer timer = new Timer();
+    TimerTask timerTask = new TimerTask(){
+        @Override
+        public void run(){
+            currentTime += 1;
+        }
+    };
+
     //BLUETOOTH CONSTANTS
 
     //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
@@ -45,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
     public static String CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "2902"; //Used to indicate to the micro:bit that we would like to interact with BLE services
 
     public static String TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E"; //MAC address of the micro:bit
-    
+
     //Numerical IDs, used internally
     private final static int REQUEST_ENABLE_BT = 1;
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 10;
@@ -105,8 +139,86 @@ public class MainActivity extends AppCompatActivity {
         short x = convertFromLittleEndianBytes(xBytes);
         short y = convertFromLittleEndianBytes(yBytes);
         short z = convertFromLittleEndianBytes(zBytes);
-        Log.d("Data", "Accelerometer Data received: x=" + x + " y=" + y + " z=" + z);
-        displayAccelerometerValues(x, y, z);
+        int absoluteValue = (int) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
+        Log.d("Data", "Accelerometer Data received at time " + currentTime + ": x=" + x + " y=" + y + " z=" + z + "absoluteValue= " + absoluteValue);
+        //displayAccelerometerValues(x, y, z);
+        updateGraph(x, y, z, absoluteValue);
+    }
+
+    //Updates the graph with a new set of data points
+    private void updateGraph(short x, short y, short z, int absoluteValue){
+        //Start the timer, if it has not already been started
+        if (currentTime == 0){
+            timer.scheduleAtFixedRate(timerTask,0,1);
+        }
+
+        //Add the accelerometer received over BLE to the corresponding series
+        xSeries.appendData(new DataPoint(currentTime, x), true, 100);
+        ySeries.appendData(new DataPoint(currentTime, y), true, 100);
+        zSeries.appendData(new DataPoint(currentTime, z), true, 100);
+        absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), true, 100);
+    }
+
+
+    //Sets up all graph settings and variables
+    private void initialiseGraph(){
+        //Initialises the graph series to store the data points
+        xSeries = new LineGraphSeries<>();
+        ySeries = new LineGraphSeries<>();
+        zSeries = new LineGraphSeries<>();
+        absoluteSeries = new LineGraphSeries<>();
+
+        //Sets the titles of each graph (used in the legend)
+        xSeries.setTitle("X");
+        ySeries.setTitle("Y");
+        zSeries.setTitle("Z");
+        absoluteSeries.setTitle("Absolute Value");
+
+        //Sets the colour of each series' lines
+        xSeries.setColor(Color.RED);
+        ySeries.setColor(Color.GREEN);
+        zSeries.setColor(Color.BLUE);
+        absoluteSeries.setColor(Color.YELLOW);
+
+        //Links graph object to the correct XML element
+        GraphView graph = (GraphView) findViewById(R.id.graph);
+
+        //Assigns a custom LabelRenderer to the graph; this customises the numbered markers along the axes
+        graph.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
+            @Override
+            public String formatLabel(double value, boolean isValueX) {
+                if (isValueX) {
+                    //The x axis should display the time in seconds since the data started streaming
+                    //Because the current time is stored in milliseconds, the number that displays should be divided by 1000
+                    return String.valueOf(value/1000);
+                }
+                else {
+                    return super.formatLabel(value, isValueX); //The y axis should be displayed as normal
+                }
+            }
+        });
+
+        //The x axis should display 10 markers, and round the numbers to be human readable
+        graph.getGridLabelRenderer().setNumHorizontalLabels(10);
+        graph.getGridLabelRenderer().setHumanRounding(true);
+
+        //Links the data series with the graph
+        graph.addSeries(xSeries);
+        graph.addSeries(ySeries);
+        graph.addSeries(zSeries);
+        graph.addSeries(absoluteSeries);
+
+        //Sets X and Y axis bounds
+        graph.getViewport().setYAxisBoundsManual(true);
+        graph.getViewport().setMinY(-1024);
+        graph.getViewport().setMaxY(1774); //As sqrt(1024^2 + 1024^2 + 1024^2) ~= 1774
+        graph.getViewport().setXAxisBoundsManual(true);
+        graph.getViewport().setMinX(0);
+        graph.getViewport().setMaxX(10000);
+
+        //Displays the legend at the top of the graph
+        graph.getLegendRenderer().setVisible(true);
+        graph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
 
     //Displays the accelerometer data to the screen by updating the TextViews
@@ -115,9 +227,9 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                ((TextView) MainActivity.this.findViewById(R.id.x)).setText("X = " + x);
-                ((TextView) MainActivity.this.findViewById(R.id.y)).setText("Y = " + y);
-                ((TextView) MainActivity.this.findViewById(R.id.z)).setText("Z = " + z);
+                //((TextView) MainActivity.this.findViewById(R.id.x)).setText("X = " + x);
+                //((TextView) MainActivity.this.findViewById(R.id.y)).setText("Y = " + y);
+                //((TextView) MainActivity.this.findViewById(R.id.z)).setText("Z = " + z);
             }
         });
     }
@@ -144,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         //Initialises up BLE objects
         final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        bluetoothAdapter = bluetoothManager.getAdapter();
+        bluetoothAdapter = bluetoothManager.getAdapter(); //TODO: handle null exception?
 
         //Ensures bluetooth is enabled
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
@@ -202,6 +314,9 @@ public class MainActivity extends AppCompatActivity {
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        //Sets up graph that BLE data will be displayed on
+        initialiseGraph();
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
