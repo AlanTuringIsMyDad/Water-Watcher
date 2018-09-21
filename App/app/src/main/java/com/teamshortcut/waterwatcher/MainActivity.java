@@ -26,31 +26,40 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
+import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.LegendRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
-//TODO: x axis labels should be a timer (lenght of screen should be maybe 3 seconds?)
 //TODO: http://www.android-graphview.org/zooming-and-scrolling/
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
-    //GRAPH
+    //GRAPH VARIABLES
 
     private LineGraphSeries<DataPoint> xSeries;
     private LineGraphSeries<DataPoint> ySeries;
     private LineGraphSeries<DataPoint> zSeries;
     private LineGraphSeries<DataPoint> absoluteSeries;
 
-    private int lastXValue = 0;
-    private int lastYValue = 0;
-    private int lastZValue = 0;
-    private int lastAbsoluteValue = 0;
+    long currentTime = 0; //in milliseconds
+
+    Timer timer = new Timer();
+    TimerTask timerTask = new TimerTask(){
+        @Override
+        public void run(){
+            currentTime += 1;
+        }
+    };
 
     //BLUETOOTH CONSTANTS
 
@@ -65,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     public static String CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "2902"; //Used to indicate to the micro:bit that we would like to interact with BLE services
 
     public static String TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E"; //MAC address of the micro:bit
-    
+
     //Numerical IDs, used internally
     private final static int REQUEST_ENABLE_BT = 1;
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 10;
@@ -126,16 +135,17 @@ public class MainActivity extends AppCompatActivity {
         short y = convertFromLittleEndianBytes(yBytes);
         short z = convertFromLittleEndianBytes(zBytes);
         int absoluteValue = (int) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
-        Log.d("Data", "Accelerometer Data received: x=" + x + " y=" + y + " z=" + z + "absoluteValue= " + absoluteValue);
+        Log.d("Data", "Accelerometer Data received at time " + currentTime + ": x=" + x + " y=" + y + " z=" + z + "absoluteValue= " + absoluteValue);
         //displayAccelerometerValues(x, y, z);
-        xSeries.appendData(new DataPoint(lastXValue, x), true, 100);
-        ySeries.appendData(new DataPoint(lastYValue, y), true, 100);
-        zSeries.appendData(new DataPoint(lastZValue, z), true, 100);
-        absoluteSeries.appendData(new DataPoint(lastAbsoluteValue, absoluteValue), true, 100);
-        lastXValue += 1;
-        lastYValue += 1;
-        lastZValue += 1;
-        lastAbsoluteValue += 1;
+
+        if (currentTime == 0){
+            timer.scheduleAtFixedRate(timerTask,0,1);
+        }
+
+        xSeries.appendData(new DataPoint(currentTime, x), true, 100);
+        ySeries.appendData(new DataPoint(currentTime, y), true, 100);
+        zSeries.appendData(new DataPoint(currentTime, z), true, 100);
+        absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), true, 100);
     }
 
     private void initialiseGraph(){
@@ -156,16 +166,33 @@ public class MainActivity extends AppCompatActivity {
         absoluteSeries.setColor(Color.YELLOW);
 
         GraphView graph = (GraphView) findViewById(R.id.graph);
+        graph.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
+            @Override
+            public String formatLabel(double value, boolean isValueX) {
+                if (isValueX) {
+                    return String.valueOf(value/1000);
+                }
+                else {
+                    return super.formatLabel(value, isValueX); // let the y-value be normal-formatted
+                }
+            }
+        });
+
+        graph.getGridLabelRenderer().setNumHorizontalLabels(10);
+        graph.getGridLabelRenderer().setHumanRounding(true);
+
         graph.addSeries(xSeries);
         graph.addSeries(ySeries);
         graph.addSeries(zSeries);
         graph.addSeries(absoluteSeries);
+
         graph.getViewport().setYAxisBoundsManual(true);
         graph.getViewport().setMinY(-1024);
         graph.getViewport().setMaxY(1774); //As sqrt(1024^2 + 1024^2 + 1024^2) ~= 1774
         graph.getViewport().setXAxisBoundsManual(true);
         graph.getViewport().setMinX(0);
-        graph.getViewport().setMaxX(100);
+        graph.getViewport().setMaxX(10000);
+
         graph.getLegendRenderer().setVisible(true);
         graph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
