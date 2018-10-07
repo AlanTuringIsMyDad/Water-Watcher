@@ -28,6 +28,7 @@ import android.widget.Toast;
 
 import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.GridLabelRenderer;
 import com.jjoe64.graphview.LegendRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
@@ -43,7 +44,6 @@ import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 //TODO: http://www.android-graphview.org/zooming-and-scrolling/
 //Add graph.getViewport().setScrollable(true); but only on disconnect? Otherwise fatal exception occurs
 //Check for BLE object if null? If not null then disable scroll?
-//TODO: label x axis as time in seconds and y axis as g-force(?)
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
@@ -219,6 +219,11 @@ public class MainActivity extends AppCompatActivity {
         //Displays the legend at the top of the graph
         graph.getLegendRenderer().setVisible(true);
         graph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+
+        //Sets the titles of each axis
+        GridLabelRenderer gridLabel = graph.getGridLabelRenderer();
+        gridLabel.setHorizontalAxisTitle("Time (Seconds)");
+        gridLabel.setVerticalAxisTitle("g-force (milli-g's)");
     }
 
     //Displays the accelerometer data to the screen by updating the TextViews
