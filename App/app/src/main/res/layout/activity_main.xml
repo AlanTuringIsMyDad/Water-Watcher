@@ -33,28 +33,10 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp">
 
-        <TextView
-            android:id="@+id/x"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="X"/>
-
-        <TextView
-            android:id="@+id/y"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/x"
-            android:padding="8dp"
-            android:text="Y"/>
-
-        <TextView
-            android:id="@+id/z"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/y"
-            android:padding="8dp"
-            android:text="Z"/>
+        <com.jjoe64.graphview.GraphView
+            android:id="@+id/graph"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
 
         <android.support.design.widget.FloatingActionButton
             android:id="@+id/fab"
