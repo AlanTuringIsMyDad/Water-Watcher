@@ -14,20 +14,26 @@ int y;
 
 int threshold; //Above this threshold, there are considered to be vibrations. Calculated later in the program
 
-//A map (or dictionary) of default values for different variables
-//Used as a last resort if something goes wrong in retrieving/assigning data
-std::map<string, int> defaults = {
-    { "x", 64 },
-    { "y", 96 },
-    { "threshold", 50 }
-};
+int numSamples; //The number of samples taken in checkVibrations()
+int period; //The accelerometer period for the micro:bit
 
 /*The program uses an integer timer variable and uBit.sleep() calls, rather than a more specialised timer like a Ticker.
 This is done mainly to conserve memory, as memory on the micro:bit is very limited and needed for other services like BLE.
 However, it also serves to ensure fibers or other tasks (such as checkVibrations() or using uBit.display) have time to complete and display correctly.
 */
-int timerValue = 10;
-int timer = timerValue;
+int timerValue; //The initial value of the timer
+int timer; //The current value of the timer
+
+//A map (or dictionary) of default values for different variables
+//Used as a last resort if something goes wrong in retrieving/assigning data
+std::map<string, int> defaults = {
+    { "x", 64 },
+    { "y", 96 },
+    { "threshold", 50 },
+    { "timerValue", 30 },
+    { "period", 160 },
+    { "numSamples", 5 }
+};
 
 //Booleans to track whether the micro:bit is in "Connection Mode" or "Calibration Mode"
 //While it is, vibration checking will pause to allow either Bluetooth connections or recalibration to occur
@@ -35,7 +41,7 @@ bool connectionMode = false;
 bool calibrationMode = false;
 
 //Returns a given variable's default value (if it has one)
-int resetDefaultValue(string key){
+int getDefaultValue(string key){
     int result;
     if (defaults.find(key) != defaults.end()){ //If the variable has a default value...
         result = defaults.find(key)->second; //...return the default value
@@ -70,7 +76,7 @@ int copyFromMemory(string key){
     ManagedString managedKey(key.c_str()); //Converts string to a ManagedString that uBit functions take
     KeyValuePair* storedValue = uBit.storage.get(managedKey);
         if(storedValue == NULL){ //If there is no current value associated with that key...
-            result = resetDefaultValue(key); //...resort to the default value
+            result = getDefaultValue(key); //...resort to the default value
             ManagedString error("ERROR");
             uBit.display.scroll(managedKey+error);
             uBit.serial.send("\r\nResorting to default storedValue.");
@@ -83,13 +89,25 @@ int copyFromMemory(string key){
     return result;
 }
 
+//USE THIS AFTER VARS HAVE BEEN UPDATED OVER BLE; STORE THE VALUES WHEN RECEIVED OVER BLE, TO UPDATE RUNTIME VARIABLES JUST CALL THIS
+//Load previously stored values from memory and assign them to the relevant variables
+void initialiseVariables(){
+    threshold = copyFromMemory("threshold");
+    x = copyFromMemory("x");
+    y = copyFromMemory("y");
+    timerValue = copyFromMemory("timerValue");
+    period = copyFromMemory("period");
+    numSamples = copyFromMemory("numSamples");
+}
+
 //Uses the accelerometer to check for vibrations
 bool checkVibrations(){
-    int n = 5;
+    //Calculates the amount of time to sleep between sampling the accelerometer
+    int sleepTime = round(500 / numSamples);
 
-    //For improved accuracy, the function samples the accelerometer multiple times at 100ms intervals
+    //For improved accuracy, the function samples the accelerometer multiple times at intervals adding up to 500ms in total
     int count = 0; //Keeps track of the number of times the vibrations are above the threshold
-    for (int i=0; i<n; i++) {
+    for (int i=0; i<numSamples; i++) {
         //If the absolute value of the difference of the x and y accelerometer values is over the threshold...
         if (sqrt(pow((x - uBit.accelerometer.getX()), 2) + pow((y - uBit.accelerometer.getY()), 2)) > threshold){
             count = count + 1; //...increment count by 1
@@ -97,9 +115,9 @@ bool checkVibrations(){
         else{
             count = count;
         }
-        uBit.sleep(100);
+        uBit.sleep(sleepTime);
     }
-    if (count >= (floor(n/2) + 1)){ //If the majority of samples were positive...
+    if (count >= (floor(numSamples/2) + 1)){ //If the majority of samples were positive...
         return true; //there are vibrations.
     }
     else{
@@ -160,6 +178,10 @@ void calibrate(){
     calibrationMode = true; //As we are beginning calibration, we have entered "Calibration Mode"
     uBit.display.scroll("Calibrate");
 
+    //Indicates the 'off' values will be taken next
+    MicroBitImage cross("255,0,0,0,255\n0,255,0,255,0\n0,0,255,0,0\n0,255,0,255,0\n255,0,0,0,255\n");
+    uBit.display.print(cross);
+
     //Waits until a button is pressed; the first time, the 'off' values are taken, then the 'on' values.
     int con = 0;
     while (con != 2){
@@ -168,13 +190,14 @@ void calibrate(){
             if(uBit.buttonA.isPressed() or uBit.buttonB.isPressed()){
                 if (con == 0){
                     pressed = true;
-                    uBit.display.scroll("OFF");
                     reset(false); //Initialise 'off' values
                     con = con + 1;
+                    //Indicates the 'on' values will be taken next
+                    MicroBitImage tick("0,0,0,0,0\n0,0,0,0,255\n0,0,0,255,0\n255,0,255,0,0\n0,255,0,0,0\n");
+                    uBit.display.print(tick);
                 }
                 else if (con == 1){
                     pressed = true;
-                    uBit.display.scroll("ON");
                     reset(true); //Initialise 'on' values
                     con = con + 1;
                 }
@@ -198,6 +221,7 @@ void calibrate(){
 //The main code loop
 void beginChecking(){
     uBit.serial.send("\r\nBegin Checking");
+    timer = timerValue;
     //MicroBitImage with all LEDs on, use to flash an alert when timer reaches 0
     MicroBitImage on("255,255,255,255, 255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n");
     while(connectionMode == false && calibrationMode == false){ //Loop while the micro:bit is not in Connection Mode
@@ -213,19 +237,22 @@ void beginChecking(){
             timer = timerValue; //Resets timer
         }
         else if (checkVibrations() == true){ //If there are vibrations...
-            uBit.sleep(1000);
+            uBit.sleep(500); //500ms + 500ms in checkVibrations() to delay 1 second in total
             timer = timer - 1; //...decrement the timer by 1
         }
         else{ //Checks for false positives
-            uBit.sleep(1000);
-                if (checkVibrations() == false){ //If, after 1000ms, there are no vibrations, reset the timer
+            uBit.sleep(500);
+            if (checkVibrations() == false){ //If, after 1 second, there are no vibrations, reset the timer
                 timer = timerValue;
             }
             else{
                 timer = timer - 1; //Otherwise, there really are vibrations, so decrement the timer by 1
             }
         }
-        uBit.display.printAsync(timer); //Displays the current timer value to the micro:bit LEDs
+        //Displays the current timer value to the micro:bit LEDs and outputs it over serial
+        //NOTE: due to how long the micro:bit LEDs takes to display, for double digit numbers only every other number will actually be displayed
+        //This does not affect serial debugging
+        uBit.display.printAsync(timer);
         uBit.serial.send(timer);
     }
     //At this point the loop has ended and Connection Mode must have been initiated
@@ -302,20 +329,23 @@ int main() {
         //Store a value to indicate that the micro:bit has been booted at least once since the last flash
         int boot = 1;
         uBit.storage.put("boot", (uint8_t *)&boot, sizeof(int));
+
+        //Stores default values in memory; values for x, y and threshold are stored in calibrate()
+        storeValue("timerValue", getDefaultValue("timerValue"));
+        storeValue("period", getDefaultValue("period"));
+        storeValue("numSamples", getDefaultValue("numSamples"));
+
         calibrate(); //Start calibration
+        initialiseVariables();
     }
     else{ //Otherwise, the micro:bit has been booted at least once before and should have previously stored values in memory
         uBit.serial.send("\r\nNot first boot since flash.");
         delete firstTime; //Removes the object from the micro:bit's (volatile) memory
-
-        //Load previously stored values from memory and assign them to the relevant variables
-        threshold = copyFromMemory("threshold");
-        x = copyFromMemory("x");
-        y = copyFromMemory("y");
+        initialiseVariables();
     }
 
     //Valid periods: 1, 2, 5, 10, 20, 80, 160 and 640 (ms)
-    uBit.accelerometer.setPeriod(160); //Sets the accelerometer sample rate to 160ms
+    uBit.accelerometer.setPeriod(period); //Sets the accelerometer sample rate
 
     //Set up listeners for Button A and Button B; runs the same function regardless of which button is pressed
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA);
