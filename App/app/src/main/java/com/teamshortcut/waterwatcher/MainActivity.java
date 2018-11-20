@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
@@ -32,8 +33,10 @@ import com.jjoe64.graphview.LegendRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
+import java.lang.reflect.Method;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -276,16 +279,48 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onServicesDiscovered(BluetoothGatt gatt, int status){
                 boolean enabled = true;
-                //Gets the Accelerometer Data characteristic from the Accelerometer service...
-                //...which is in turn gotten from the GATT Client (the mobile phone)
-                BluetoothGattCharacteristic characteristic = gatt.getService(formatUUID(ACCELEROMETERSERVICE_SERVICE_UUID)).getCharacteristic(formatUUID(ACCELEROMETERDATA_CHARACTERISTIC_UUID));
-                //Sets up notifications for the Accelerometer Data characteristic. When the characteristic has changed (ie. data has been sent), onCharacteristicChanged() will be called
-                gatt.setCharacteristicNotification(characteristic, enabled);
 
-                //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
-                BluetoothGattDescriptor descriptor = characteristic.getDescriptor(formatUUIDShort(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID));
-                descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                gatt.writeDescriptor(descriptor);
+                //Loops through all available services on the device
+                if (status == BluetoothGatt.GATT_SUCCESS){
+                    List<BluetoothGattService> gattServices = gatt.getServices();
+                    for (BluetoothGattService gattService : gattServices){
+                        Log.i("Services Discovered", gattService.getUuid().toString());
+                    }
+                }
+
+                //Gets the accelerometer service from GATT Client (the mobile phone)
+                BluetoothGattService accelerometerService = gatt.getService(formatUUID(ACCELEROMETERSERVICE_SERVICE_UUID));
+
+                //Sometimes only generic services are initially found, so the accelerometer service will return null even if it exists on the device
+                if (accelerometerService != null){
+                    BluetoothGattCharacteristic accelerometerCharacteristic = accelerometerService.getCharacteristic(formatUUID(ACCELEROMETERDATA_CHARACTERISTIC_UUID));
+
+                    //Sets up notifications for the Accelerometer Data characteristic. When the characteristic has changed (ie. data has been sent), onCharacteristicChanged() will be called
+                    gatt.setCharacteristicNotification(accelerometerCharacteristic, enabled);
+
+                    //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
+                    BluetoothGattDescriptor accelerometerDescriptor = accelerometerCharacteristic.getDescriptor(formatUUIDShort(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID));
+                    accelerometerDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    gatt.writeDescriptor(accelerometerDescriptor);
+                }
+                else{ //If the accelerometer service was not found
+                    Log.e("BLE Services", "Accelerometer service not found");
+                    try{
+                        /*Android's BluetoothGatt has a method "refresh" that will clear the internal cache and force a refresh of the services from the device
+                        This is because Android only requests the device once to discover its services, and all subsequent calls to discoverServices simply fetch the cached results from the first call
+                        However, this method is normally inaccessible, and to call it, reflection - a feature of Java that allows the program to examine itself and manipulate its internal properties - must be used.
+                        Calling this "refresh" method will force a rediscovery of all BLE services, causing the non-generic services to be found if they weren't previously.
+                        */
+                        BluetoothGatt localGatt = gatt;
+                        Method localMethod = localGatt.getClass().getMethod("refresh", new Class[0]); //Gets the "refresh" method
+                        if (localMethod != null){
+                            boolean bool = ((Boolean) localMethod.invoke(localGatt, new Object[0])).booleanValue(); //Invokes the method, essentially forcing BLE services to be rediscovered
+                        }
+                    }
+                    catch (Exception localException){
+                        Log.e("BLE Services", "An exception occurred while refreshing the device");
+                    }
+                }
             }
 
             @Override
