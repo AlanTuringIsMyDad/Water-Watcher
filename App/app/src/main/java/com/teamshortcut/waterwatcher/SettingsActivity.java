@@ -31,6 +31,7 @@ import android.widget.Toast;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -131,7 +132,6 @@ public class SettingsActivity extends AppCompatActivity {
                 //Sometimes only generic services are initially found, so the accelerometer service will return null even if it exists on the device
                 if (uartService != null){
                     BluetoothGattCharacteristic uartReadCharacteristic = uartService.getCharacteristic(java.util.UUID.fromString(UART_RX_CHARACTERISTIC_UUID));
-                    //BluetoothGattCharacteristic uartWriteCharacteristic = uartService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
 
                     //Sets up notifications for the Accelerometer Data characteristic. When the characteristic has changed (ie. data has been sent), onCharacteristicChanged() will be called
                     gatt.setCharacteristicNotification(uartReadCharacteristic, enabled);
@@ -203,9 +203,11 @@ public class SettingsActivity extends AppCompatActivity {
                         try {
                             String text = "SHORTCUT" + ":";
                             byte[] ascii_bytes = text.getBytes("US-ASCII");
-                            BluetoothGattCharacteristic characteristic = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID)).getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
-                            Log.i("BLE Characteristic", String.valueOf(characteristic));
+                            Log.i("BLE DATA", Arrays.toString(ascii_bytes));
+                            BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
+                            BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
                             characteristic.setValue(ascii_bytes);
+                            gattClient.writeCharacteristic(characteristic);
                         } catch (UnsupportedEncodingException e) {
                             e.printStackTrace();
                         }
