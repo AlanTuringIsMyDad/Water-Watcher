@@ -6,7 +6,9 @@
 #include <map> //Used to store default values
 #include <string> //Used with functions/libraries that don't support Managed Strings
 #include "MicroBit.h" //The micro:bit library to provide access to micro:bit hardware
+#include "MicroBitUARTService.h"
 MicroBit uBit; //An instance of the micro:bit class; used to interact with micro:bit components
+MicroBitUARTService *uart;
 
 //'off' values for the accelerometer
 int x;
@@ -27,18 +29,18 @@ int timer; //The current value of the timer
 //A map (or dictionary) of default values for different variables
 //Used as a last resort if something goes wrong in retrieving/assigning data
 std::map<string, int> defaults = {
-    { "x", 64 },
-    { "y", 96 },
-    { "threshold", 50 },
+    { "x", 16 },
+    { "y", -16 },
+    { "threshold", 64 },
     { "timerValue", 30 },
     { "period", 160 },
     { "numSamples", 5 }
 };
 
-//Booleans to track whether the micro:bit is in "Connection Mode" or "Calibration Mode"
-//While it is, vibration checking will pause to allow either Bluetooth connections or recalibration to occur
-bool connectionMode = false;
-bool calibrationMode = false;
+//Booleans to track which "Mode" the micro:bit is in
+//While it is not in Mode 0, vibration checking will pause to allow either Bluetooth activity or recalibration to occur
+int mode = 0; //0: Vibration Checking mode, 1: Connection mode, 2: Settings mode, 3: Calibration mode
+bool connected = false; //Tracks if there is currently a BLE connection to the micro:bit
 
 //Returns a given variable's default value (if it has one)
 int getDefaultValue(string key){
@@ -79,12 +81,12 @@ int copyFromMemory(string key){
             result = getDefaultValue(key); //...resort to the default value
             ManagedString error("ERROR");
             uBit.display.scroll(managedKey+error);
-            uBit.serial.send("\r\nResorting to default storedValue.");
+            uBit.serial.send("\r\nResorting to default stored value.");
         }
         else{ //Otherwise, copy the value associated with that key from memory
             memcpy(&result, storedValue->value, sizeof(int));
             delete storedValue;
-            uBit.serial.send("\r\nCopied storedValue from memory.");
+            uBit.serial.send("\r\nCopied stored value from memory.");
         }
     return result;
 }
@@ -175,7 +177,7 @@ void reset(bool toggle) {
 }
 
 void calibrate(){
-    calibrationMode = true; //As we are beginning calibration, we have entered "Calibration Mode"
+    mode = 3; //As we are beginning calibration, we have entered "Calibration Mode"
     uBit.display.scroll("Calibrate");
 
     //Indicates the 'off' values will be taken next
@@ -215,7 +217,7 @@ void calibrate(){
     uBit.serial.send(y);
     uBit.serial.send("\r\nThreshold:");
     uBit.serial.send(threshold);
-    calibrationMode = false; //Exit "Calibration Mode"
+    mode = 0; //Exit "Calibration Mode"
 }
 
 //The main code loop
@@ -224,7 +226,7 @@ void beginChecking(){
     timer = timerValue;
     //MicroBitImage with all LEDs on, use to flash an alert when timer reaches 0
     MicroBitImage on("255,255,255,255, 255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n");
-    while(connectionMode == false && calibrationMode == false){ //Loop while the micro:bit is not in Connection Mode
+    while(mode == 0){ //Loop while the micro:bit is in Vibration checking mode
         if (timer <= 0){ //When the timer has finished counting down...
             while (checkVibrations() == true){ //...flashes all LEDs until vibrations have stopped
                 for (int i=0; i<5; i++) {
@@ -259,62 +261,97 @@ void beginChecking(){
     uBit.serial.send("\r\nLoop terminated.");
 }
 
+// ManagedString getCurrentSettings(){
+
+// }
+
 void onConnected(MicroBitEvent)
 {
+    connected = true;
     uBit.display.print("C");
     uBit.sleep(5000); //Delays to allow the micro:bit time to start streaming data after the connection has been made
-    connectionMode = false; //Device has now connected, so exit Connection Mode
+    mode = 0; //Device has now connected, so exit Connection Mode
     create_fiber(beginChecking); //(re)enters main code loop, where vibrations are continually checked
 }
 
 void onDisconnected(MicroBitEvent)
 {
     uBit.display.print("D");
-}
-
-void onButtonA(MicroBitEvent)
-{
-    if (connectionMode){
-        //If the micro:bit is already in "Connection Mode", then do nothing
-    }
-    else{
-        if (calibrationMode){ //If the micro:bit is already in "Calibration Mode", then exit it
-            calibrationMode = false;
-            uBit.serial.send("\r\nCalibration Mode exited.");
-            create_fiber(beginChecking); //(re)enters main code loop, where vibrations are continually checked
-        }
-        else{
-            uBit.serial.send("\r\nCalibration Mode initiated.");
-            uBit.messageBus.ignore(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA); //Ignore the button listener while calibration happens
-            calibrate(); //(re)calibrate the micro:bit's accelerometer values
-            uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA); //Re-enables the button listener
-            create_fiber(beginChecking); //(re)enters main code loop, where vibrations are continually checked
-        }
-    }
+    connected = false;
 }
 
 //Toggles Connection Mode if either Button A or Button B is pressed on the micro:bit
 //In Connection Mode the micro:bit waits for a connection over BLE and starts the Accelerometer Service
 void onButtonB(MicroBitEvent)
 {
-    if (calibrationMode){
+    if (mode == 3){
         //If the micro:bit is already in "Calibration Mode", then do nothing
     }
     else{
-        if (connectionMode){ //If the micro:bit is already in Connection Mode, exit it and return to checking vibrations
-            connectionMode = false;
+        if (mode == 1 or mode == 2){ //If the micro:bit is already in Connection Mode or Settings Mode, exit it and return to checking vibrations
+            mode = 0;
             uBit.serial.send("\r\nConnection Mode exited.");
             create_fiber(beginChecking);
         }
-        else{ //Otherwise, enter Connection Mode
-            connectionMode = true;
-            uBit.serial.send("\r\nConnection Mode initiated.");
-            uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_CONNECTED, onConnected);
-            uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_DISCONNECTED, onDisconnected);
+        else{
+            if (connected){ //Enter Settings Mode
+                uBit.display.scroll("Settings");
+                mode = 2;
+                uBit.display.stopAnimation();
+                MicroBitImage arrow("0,0,255,0,0\n0,255,0,0,0\n255,255,255,255,255\n0,255,0,0,0\n0,0,255,0,0\n");
+                uBit.display.printAsync(arrow);
 
-            new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
-            uBit.display.scroll("BLE...");
+                bool con = true;
+                while (mode == 2 and con == true) {
+                    ManagedString eom("\\");
+                    ManagedString msg = uart->readUntil(eom);
+                    uBit.display.scroll(msg);
+                    con = false;
+                }
+                MicroBitImage smile("0,255,0,255,0\n0,255,0,255,0\n0,0,0,0,0\n255,0,0,0,255\n0,255,255,255,0\n");
+                //if validation: smile, othewise: sad
+                uBit.display.print(smile);
+                uBit.sleep(1000);
+                mode = 0;
+                create_fiber(beginChecking);
+            }
+            else{ //Otherwise, enter Connection Mode
+                uBit.display.scroll("BLE");
+                mode = 1;
+                uBit.serial.send("\r\nConnection Mode initiated.");
+                new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
+                uart = new MicroBitUARTService(*uBit.ble, 32, 32);
+                uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_CONNECTED, onConnected);
+                uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_DISCONNECTED, onDisconnected);
+            }
         }    
+    }
+}
+
+void onButtonA(MicroBitEvent)
+{
+    if (mode == 1){
+        //If the micro:bit is already in "Connection Mode" do nothing
+        uBit.serial.send("MODE 1");
+    }
+    else if (mode == 2){ //If the micro:bit is in Settings Mode
+        uart->send("SETTINGS");
+        uBit.serial.send("UART message sent");
+    }
+    else{
+        if (mode == 3){ //If the micro:bit is already in "Calibration Mode", then exit it
+            mode = 0;
+            uBit.serial.send("\r\nCalibration Mode exited.");
+            create_fiber(beginChecking); //(re)enters main code loop, where vibrations are continually checked
+        }
+        else{
+            uBit.serial.send("\r\nCalibration Mode initiated.");
+            uBit.messageBus.ignore(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA); //Ignore the button listener while calibration happens
+            uBit.messageBus.ignore(MICROBIT_ID_BUTTON_B, MICROBIT_BUTTON_EVT_CLICK, onButtonB); //Ignore the button listener while calibration happens
+            calibrate(); //(re)calibrate the micro:bit's accelerometer values
+            uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA); //Re-enables the button listener
+            create_fiber(beginChecking); //(re)enters main code loop, where vibrations are continually checked
+        }
     }
 }
 

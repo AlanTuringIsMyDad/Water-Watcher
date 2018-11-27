@@ -27,6 +27,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import java.io.UnsupportedEncodingException;
@@ -51,8 +52,8 @@ public class SettingsActivity extends AppCompatActivity {
 
     //Each Service has Characteristics, which are used to read/write data
     public static String UARTSERVICE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-    public static String UART_RX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-    public static String UART_TX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+    public static String UART_RX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; //Reads from the micro:bit
+    public static String UART_TX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; //Writes to the micro:bit
     public static String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
 
     public static String TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E"; //MAC address of the micro:bit
@@ -91,6 +92,10 @@ public class SettingsActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    private void getSettings(){
+
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -163,17 +168,18 @@ public class SettingsActivity extends AppCompatActivity {
 
             @Override
             public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                int length = characteristic.getValue().length;
+                byte[] data  = characteristic.getValue(); //The data the micro:bit has sent over BLE
+                int length = data.length;
                 byte[] bytes = new byte[length];
-                System.arraycopy(characteristic.getValue(), 0, bytes, 0, length);
+                System.arraycopy(data, 0, bytes, 0, length); //System.arraycopy() is used for performance+efficiency
                 String ascii = "NULL";
-                try {
+                try { //Convert from a bytearray to a string
                     ascii = new String(bytes,"US-ASCII");
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
-                    Log.i("BLE DATA RECEIVED", "ENCODING ERROR");
+                    Log.i("BLE Data Received", "ENCODING ERROR");
                 }
-                Log.i("BLE DATA RECEIVED", ascii);
+                Log.i("BLE Data Received", ascii);
             }
         };
 
@@ -198,23 +204,30 @@ public class SettingsActivity extends AppCompatActivity {
                 }
                 else{
                     Snackbar.make(view, R.string.microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    gattClient = targetDevice.connectGatt(SettingsActivity.this, false, gattCallback); //Connects the GATT callback to start receiving data; autoConnect is set to True
+                }
+            }
+        });
 
-                    if (bluetoothManager.getConnectionState(targetDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED){
-                        try {
-                            String text = "SHORTCUT" + ":";
-                            byte[] ascii_bytes = text.getBytes("US-ASCII");
-                            Log.i("BLE DATA", Arrays.toString(ascii_bytes));
-                            BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
-                            BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
-                            characteristic.setValue(ascii_bytes);
-                            gattClient.writeCharacteristic(characteristic);
-                        } catch (UnsupportedEncodingException e) {
-                            e.printStackTrace();
-                        }
+        final Button button = (Button) findViewById(R.id.settings_button);
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                if (bluetoothManager.getConnectionState(targetDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED){
+                    try {
+                        String text = "SHORTCUT" + "\\";
+                        byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
+                        BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
+                        BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
+                        //Write (send) the bytearray to the micro:bit over BLE
+                        characteristic.setValue(ascii);
+                        gattClient.writeCharacteristic(characteristic);
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
                     }
-                    else{//TODO: try autoConnect = false?
-                        gattClient = targetDevice.connectGatt(SettingsActivity.this, false, gattCallback); //Connects the GATT callback to start receiving data; autoConnect is set to True
-                    }
+                }
+                else{
+                    Snackbar.make(view, "No micro:bit connected!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    Log.e("BLE Connection State", "Attempted to send settings with no available connection");
                 }
             }
         });
