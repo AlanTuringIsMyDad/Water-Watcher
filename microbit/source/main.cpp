@@ -10,21 +10,19 @@
 MicroBit uBit; //An instance of the micro:bit class; used to interact with micro:bit components
 MicroBitUARTService *uart;
 
-//'off' values for the accelerometer
-int x;
-int y;
+/*
+x and y : 'off' values for the accelerometer
+threshold : Above this threshold, there are considered to be vibrations. Calculated later in the program
+numSamples : The number of samples taken in checkVibrations()
+period: The accelerometer period for the micro:bit
+timerValue : The initial value of the timer
+timer : the current value of the timer
 
-int threshold; //Above this threshold, there are considered to be vibrations. Calculated later in the program
-
-int numSamples; //The number of samples taken in checkVibrations()
-int period; //The accelerometer period for the micro:bit
-
-/*The program uses an integer timer variable and uBit.sleep() calls, rather than a more specialised timer like a Ticker.
+The program uses an integer timer variable and uBit.sleep() calls, rather than a more specialised timer like a Ticker.
 This is done mainly to conserve memory, as memory on the micro:bit is very limited and needed for other services like BLE.
 However, it also serves to ensure fibers or other tasks (such as checkVibrations() or using uBit.display) have time to complete and display correctly.
 */
-int timerValue; //The initial value of the timer
-int timer; //The current value of the timer
+int x, y, threshold, numSamples, period, timerValue, timer;
 
 //A map (or dictionary) of default values for different variables
 //Used as a last resort if something goes wrong in retrieving/assigning data
@@ -62,12 +60,10 @@ void storeValue(string key, int data){
     KeyValuePair* value = uBit.storage.get(managedKey);
     if(value == NULL){ //If no current value exists, add one
         uBit.storage.put(managedKey, (uint8_t *)&data, sizeof(int));
-        uBit.serial.send("\r\nNew value stored in memory.");
     }
     else{ //If there is already an existing value stored, overwrite it
         uBit.storage.remove(managedKey);
         uBit.storage.put(managedKey, (uint8_t *)&data, sizeof(int));
-        uBit.serial.send("\r\nValue overwritten in memory.");
         delete value; //Removes the object from (volatile) memory
     }
 }
@@ -86,12 +82,10 @@ int copyFromMemory(string key){
         else{ //Otherwise, copy the value associated with that key from memory
             memcpy(&result, storedValue->value, sizeof(int));
             delete storedValue;
-            uBit.serial.send("\r\nCopied stored value from memory.");
         }
     return result;
 }
 
-//USE THIS AFTER VARS HAVE BEEN UPDATED OVER BLE; STORE THE VALUES WHEN RECEIVED OVER BLE, TO UPDATE RUNTIME VARIABLES JUST CALL THIS
 //Load previously stored values from memory and assign them to the relevant variables
 void initialiseVariables(){
     threshold = copyFromMemory("threshold");
@@ -114,9 +108,6 @@ bool checkVibrations(){
         if (sqrt(pow((x - uBit.accelerometer.getX()), 2) + pow((y - uBit.accelerometer.getY()), 2)) > threshold){
             count = count + 1; //...increment count by 1
         }
-        else{
-            count = count;
-        }
         uBit.sleep(sleepTime);
     }
     if (count >= (floor(numSamples/2) + 1)){ //If the majority of samples were positive...
@@ -130,8 +121,7 @@ bool checkVibrations(){
 //Function to reset x and y motion values. Toggle is True for resetting the 'on' values, False for resetting the 'off' values
 void reset(bool toggle) {
     //Gets x and y values 3 times at 1000ms intervals
-    int xList[3];
-    int yList[3];
+    int xList[3], yList[3];
 
     for (int i=0; i<3; i++) {
         xList[i] = uBit.accelerometer.getX();
@@ -152,7 +142,6 @@ void reset(bool toggle) {
     std::sort(std::begin(yList), std::end(yList));
 
     if (toggle == false){
-        uBit.serial.send("\r\ntoggle=false\r\n");
         //Assigns the median x and y values to the 'off' variables
         x = xList[1];
         y = yList[1];
@@ -163,7 +152,6 @@ void reset(bool toggle) {
     }
     else{
         //WARNING: relies on correct x and y 'off' or 'nothing' values being assigned already!
-        uBit.serial.send("\r\ntoggle=true\r\n");
 
         //Takes the difference of the 'nothing' values and the 'on' values and  assigns the average as the threshold.
         int xdiff = fabs(fabs(x) - fabs(xList[1]));
@@ -203,9 +191,6 @@ void calibrate(){
                     reset(true); //Initialise 'on' values
                     con = con + 1;
                 }
-                else{
-                    con = con;
-                }
             }
         }
     }
@@ -222,7 +207,6 @@ void calibrate(){
 
 //The main code loop
 void beginChecking(){
-    uBit.serial.send("\r\nBegin Checking");
     timer = timerValue;
     //MicroBitImage with all LEDs on, use to flash an alert when timer reaches 0
     MicroBitImage on("255,255,255,255, 255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n");
@@ -254,16 +238,69 @@ void beginChecking(){
         //Displays the current timer value to the micro:bit LEDs and outputs it over serial
         //NOTE: due to how long the micro:bit LEDs takes to display, for double digit numbers only every other number will actually be displayed
         //This does not affect serial debugging
-        uBit.display.printAsync(timer);
+        uBit.display.print(timer, 120); //Default value is 120
         uBit.serial.send(timer);
     }
     //At this point the loop has ended and Connection Mode must have been initiated
     uBit.serial.send("\r\nLoop terminated.");
 }
 
-// ManagedString getCurrentSettings(){
+//Fetches the value of each setting from memory, converts it to a ManagedString
+//and formats it as the app is expecting to be sent over BLE, returning the resulting ManagedString
+ManagedString getCurrentSettings(){
+    ManagedString timer(copyFromMemory("timerValue"));
+    ManagedString period(copyFromMemory("period"));
+    ManagedString numSamples(copyFromMemory("numSamples"));
+    ManagedString x(copyFromMemory("x"));
+    ManagedString y(copyFromMemory("y"));
+    ManagedString threshold(copyFromMemory("threshold"));
+    ManagedString comma(",");
+    ManagedString eom("\\");
+    //App expects the values to be sent separated by commas, ending with a single backslash
+    ManagedString settings = timer + comma + period + comma + numSamples + comma + x + comma + y + comma + threshold + eom;
+    return settings;
+}
 
-// }
+//Updates the variables and stored values of each setting based on the input (received over BLE)
+void updateSettings(string settings){
+    //First, convert the received string to an array of individual values
+    char characters[settings.length()]; //Creates a character array with a length of the size of the string
+    strcpy(characters, settings.c_str()); //Copies the string into an array of characters
+    
+    int i = 0;
+    char* dataArray[6]; //This will store the individual values
+    //Individual values are separated by commas, so split by that character and loop through the array until the end is reached
+    char* characterArray = strtok(characters, ",");
+    while (characterArray != NULL){
+        dataArray[i] = (char *) malloc (strlen(characterArray) + 1); //Allocates memory for the value to be copied
+        strcpy(dataArray[i], characterArray); //Copy the value into dataArray
+        i = i + 1;
+        characterArray = strtok(NULL, ",");
+    }
+
+    //atoi parses a (pointer to a) char and returns its integer value
+    storeValue("timerValue", atoi(dataArray[0]));
+    storeValue("period", atoi(dataArray[1]));
+    storeValue("numSamples", atoi(dataArray[2]));
+    //storeValue("x", atoi(dataArray[3]));
+    //storeValue("y", atoi(dataArray[4]));
+    //storeValue("threshold", atoi(dataArray[5]));
+    initialiseVariables(); //Updates all variables with the new values that have just been stored in memory
+
+    //Debugging
+    uBit.serial.send("\r\nCurrent timerValue:");
+    uBit.serial.send(timerValue);
+    uBit.serial.send("\r\nCurrent period:");
+    uBit.serial.send(period);
+    uBit.serial.send("\r\nCurrent numSamples:");
+    uBit.serial.send(numSamples);
+    //uBit.serial.send("\r\nCurrent X:");
+    //uBit.serial.send(x);
+    //uBit.serial.send("\r\nCurrent Y":);
+    //uBit.serial.send(y);
+    //uBit.serial.send("\r\nCurrent threshold:");
+    //uBit.serial.send(threshold);
+}
 
 void onConnected(MicroBitEvent)
 {
@@ -290,7 +327,7 @@ void onButtonB(MicroBitEvent)
     else{
         if (mode == 1 or mode == 2){ //If the micro:bit is already in Connection Mode or Settings Mode, exit it and return to checking vibrations
             mode = 0;
-            uBit.serial.send("\r\nConnection Mode exited.");
+            //uBit.serial.send("\r\nConnection Mode exited.");
             create_fiber(beginChecking);
         }
         else{
@@ -298,27 +335,34 @@ void onButtonB(MicroBitEvent)
                 uBit.display.scroll("Settings");
                 mode = 2;
                 uBit.display.stopAnimation();
+                uBit.display.clear();
+                uBit.sleep(100); //Allows time for the screen to clear before displaying the next image
                 MicroBitImage arrow("0,0,255,0,0\n0,255,0,0,0\n255,255,255,255,255\n0,255,0,0,0\n0,0,255,0,0\n");
-                uBit.display.printAsync(arrow);
+                uBit.display.print(arrow);
 
                 bool con = true;
-                while (mode == 2 and con == true) {
+                ManagedString msg;
+                while (mode == 2 and con == true) { //While in Settings Mode, loop until data is received over BLE, 
                     ManagedString eom("\\");
-                    ManagedString msg = uart->readUntil(eom);
-                    uBit.display.scroll(msg);
-                    con = false;
+                    msg = uart->readUntil(eom); //Read the data received on the UART service until the End Of Message Character
+                    //uBit.display.scroll(msg);
+                    con = false; //exit the loop
                 }
+                uBit.serial.send(msg);
+                string settings(msg.toCharArray()); //Convert ManagedString to String
+                updateSettings(settings); //Update settings to the ones received over UART
+                
                 MicroBitImage smile("0,255,0,255,0\n0,255,0,255,0\n0,0,0,0,0\n255,0,0,0,255\n0,255,255,255,0\n");
-                //if validation: smile, othewise: sad
+                //if validation: smile, othewise: sad. May need to go in updateSettings() or other function
                 uBit.display.print(smile);
                 uBit.sleep(1000);
-                mode = 0;
-                create_fiber(beginChecking);
+                
+                mode = 0; //Settings have been updated, so return to Vibration Checking Mode
+                create_fiber(beginChecking); //(re)enters main code loop
             }
             else{ //Otherwise, enter Connection Mode
                 uBit.display.scroll("BLE");
                 mode = 1;
-                uBit.serial.send("\r\nConnection Mode initiated.");
                 new MicroBitAccelerometerService(*uBit.ble, uBit.accelerometer);
                 uart = new MicroBitUARTService(*uBit.ble, 32, 32);
                 uBit.messageBus.listen(MICROBIT_ID_BLE, MICROBIT_BLE_EVT_CONNECTED, onConnected);
@@ -332,20 +376,16 @@ void onButtonA(MicroBitEvent)
 {
     if (mode == 1){
         //If the micro:bit is already in "Connection Mode" do nothing
-        uBit.serial.send("MODE 1");
     }
     else if (mode == 2){ //If the micro:bit is in Settings Mode
-        uart->send("SETTINGS");
-        uBit.serial.send("UART message sent");
+        uart->send(getCurrentSettings());
     }
     else{
         if (mode == 3){ //If the micro:bit is already in "Calibration Mode", then exit it
             mode = 0;
-            uBit.serial.send("\r\nCalibration Mode exited.");
             create_fiber(beginChecking); //(re)enters main code loop, where vibrations are continually checked
         }
         else{
-            uBit.serial.send("\r\nCalibration Mode initiated.");
             uBit.messageBus.ignore(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA); //Ignore the button listener while calibration happens
             uBit.messageBus.ignore(MICROBIT_ID_BUTTON_B, MICROBIT_BUTTON_EVT_CLICK, onButtonB); //Ignore the button listener while calibration happens
             calibrate(); //(re)calibrate the micro:bit's accelerometer values
@@ -357,7 +397,6 @@ void onButtonA(MicroBitEvent)
 
 int main() {
     uBit.init(); //Initialise the micro:bit runtime
-    uBit.serial.send("\r\nSTART PROGRAM");
 
     KeyValuePair* firstTime = uBit.storage.get("boot");
     if(firstTime == NULL) //If there is no value, this is the first boot after a flash!
@@ -376,7 +415,6 @@ int main() {
         initialiseVariables();
     }
     else{ //Otherwise, the micro:bit has been booted at least once before and should have previously stored values in memory
-        uBit.serial.send("\r\nNot first boot since flash.");
         delete firstTime; //Removes the object from the micro:bit's (volatile) memory
         initialiseVariables();
     }

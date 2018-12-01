@@ -28,6 +28,8 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import java.io.UnsupportedEncodingException;
@@ -40,7 +42,6 @@ import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class SettingsActivity extends AppCompatActivity {
-
     //TODO: UUID conversion should be consistent (remove the formatUUID function and just use the java one)
     //TODO: update MainActivity with onServicesDiscovered
 
@@ -94,8 +95,13 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    private void getSettings(){
-
+    private String getAndFormatSettings(){
+        String settings;
+        EditText timerEditText = (EditText) findViewById(R.id.timer_textbox);
+        Spinner periodSpinner = (Spinner) findViewById(R.id.period_spinner);
+        EditText samplesEditText = (EditText) findViewById(R.id.samples_textbox);
+        settings = timerEditText.getText() + "," + periodSpinner.getSelectedItem().toString() + "," + samplesEditText.getText();
+        return settings;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -214,7 +220,7 @@ public class SettingsActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (bluetoothManager.getConnectionState(targetDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED){
                     try {
-                        String text = "SHORTCUT" + "\\";
+                        String text = getAndFormatSettings() + "\\";
                         byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
                         BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
                         BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
