@@ -282,9 +282,9 @@ void updateSettings(string settings){
     storeValue("timerValue", atoi(dataArray[0]));
     storeValue("period", atoi(dataArray[1]));
     storeValue("numSamples", atoi(dataArray[2]));
-    //storeValue("x", atoi(dataArray[3]));
-    //storeValue("y", atoi(dataArray[4]));
-    //storeValue("threshold", atoi(dataArray[5]));
+    storeValue("x", atoi(dataArray[3]));
+    storeValue("y", atoi(dataArray[4]));
+    storeValue("threshold", atoi(dataArray[5]));
     initialiseVariables(); //Updates all variables with the new values that have just been stored in memory
 
     //Debugging
@@ -294,12 +294,12 @@ void updateSettings(string settings){
     uBit.serial.send(period);
     uBit.serial.send("\r\nCurrent numSamples:");
     uBit.serial.send(numSamples);
-    //uBit.serial.send("\r\nCurrent X:");
-    //uBit.serial.send(x);
-    //uBit.serial.send("\r\nCurrent Y":);
-    //uBit.serial.send(y);
-    //uBit.serial.send("\r\nCurrent threshold:");
-    //uBit.serial.send(threshold);
+    uBit.serial.send("\r\nCurrent X:");
+    uBit.serial.send(x);
+    uBit.serial.send("\r\nCurrent Y:");
+    uBit.serial.send(y);
+    uBit.serial.send("\r\nCurrent threshold:");
+    uBit.serial.send(threshold);
 }
 
 void onConnected(MicroBitEvent)

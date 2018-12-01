@@ -10,15 +10,11 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
@@ -32,16 +28,18 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.alespero.expandablecardview.ExpandableCardView;
+
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class SettingsActivity extends AppCompatActivity {
+    //TODO: convert strings in .xml to the strings.xml file
+
     //TODO: UUID conversion should be consistent (remove the formatUUID function and just use the java one)
     //TODO: update MainActivity with onServicesDiscovered
 
@@ -100,7 +98,11 @@ public class SettingsActivity extends AppCompatActivity {
         EditText timerEditText = (EditText) findViewById(R.id.timer_textbox);
         Spinner periodSpinner = (Spinner) findViewById(R.id.period_spinner);
         EditText samplesEditText = (EditText) findViewById(R.id.samples_textbox);
-        settings = timerEditText.getText() + "," + periodSpinner.getSelectedItem().toString() + "," + samplesEditText.getText();
+        ExpandableCardView card = findViewById(R.id.advanced);
+        EditText xEditText = card.findViewById(R.id.x_textbox);
+        EditText yEditText = card.findViewById(R.id.y_textbox);
+        EditText thresholdEditText = card.findViewById(R.id.threshold_textbox);
+        settings = timerEditText.getText() + "," + periodSpinner.getSelectedItem().toString() + "," + samplesEditText.getText() + "," + xEditText.getText() + "," + yEditText.getText() + "," + thresholdEditText.getText();
         return settings;
     }
 
@@ -221,6 +223,7 @@ public class SettingsActivity extends AppCompatActivity {
                 if (bluetoothManager.getConnectionState(targetDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED){
                     try {
                         String text = getAndFormatSettings() + "\\";
+                        Log.i("Data", text);
                         byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
                         BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
                         BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));

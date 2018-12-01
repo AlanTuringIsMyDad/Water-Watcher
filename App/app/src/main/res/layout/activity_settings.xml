@@ -85,6 +85,15 @@
 
     </LinearLayout>
 
+    <com.alespero.expandablecardview.ExpandableCardView
+        android:id="@+id/advanced"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:title="Advanced"
+        app:icon="@drawable/baseline_settings_ethernet_black_24"
+        app:inner_view="@layout/advanced_layout"
+        app:expandOnClick="true"/>
+
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -92,13 +101,6 @@
         android:id="@+id/settings_button"
         android:padding="16dp"
         android:text="Send Settings over BLE"/>
-
-    <!--<ExpandableListView
-        android:id="@+id/expandable"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        https://androidexample365.com/a-simple-expandable-cardview-for-android/
-    </ExpandableListView>-->
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/fab"
