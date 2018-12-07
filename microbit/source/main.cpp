@@ -37,8 +37,9 @@ std::map<string, int> defaults = {
 
 //Booleans to track which "Mode" the micro:bit is in
 //While it is not in Mode 0, vibration checking will pause to allow either Bluetooth activity or recalibration to occur
-int mode = 0; //0: Vibration Checking mode, 1: Connection mode, 2: Settings mode, 3: Calibration mode
+int mode = 0; //0: Vibration Checking mode, 1: Connection mode, 2: Settings mode, 3: Calibration mode, 4: Reset mode
 bool connected = false; //Tracks if there is currently a BLE connection to the micro:bit
+bool confirmReset = false; //Used to track the user's confirmation of resetting the program
 
 //Returns a given variable's default value (if it has one)
 int getDefaultValue(string key){
@@ -209,7 +210,7 @@ void calibrate(){
 void beginChecking(){
     timer = timerValue;
     //MicroBitImage with all LEDs on, use to flash an alert when timer reaches 0
-    MicroBitImage on("255,255,255,255, 255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n");
+    MicroBitImage on("255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n");
     while(mode == 0){ //Loop while the micro:bit is in Vibration checking mode
         if (timer <= 0){ //When the timer has finished counting down...
             while (checkVibrations() == true){ //...flashes all LEDs until vibrations have stopped
@@ -236,13 +237,14 @@ void beginChecking(){
             }
         }
         //Displays the current timer value to the micro:bit LEDs and outputs it over serial
-        //NOTE: due to how long the micro:bit LEDs takes to display, for double digit numbers only every other number will actually be displayed
-        //This does not affect serial debugging
-        uBit.display.print(timer, 120); //Default value is 120
+        uBit.display.printAsync(timer, 250);
         uBit.serial.send(timer);
     }
     //At this point the loop has ended and Connection Mode must have been initiated
     uBit.serial.send("\r\nLoop terminated.");
+    uBit.display.stopAnimation();
+    uBit.display.clear();
+    uBit.sleep(250); //Allows time for the screen to clear before displaying the next image
 }
 
 //Fetches the value of each setting from memory, converts it to a ManagedString
@@ -259,6 +261,31 @@ ManagedString getCurrentSettings(){
     //App expects the values to be sent separated by commas, ending with a single backslash
     ManagedString settings = timer + comma + period + comma + numSamples + comma + x + comma + y + comma + threshold + eom;
     return settings;
+}
+
+//Checks that all received settings are valid
+bool validateSettings(int receivedTimer, int receivedPeriod, int receivedNumSamples, int receivedX, int receivedY, int receivedThreshold){
+    bool result = true;
+    if (not(receivedTimer >= 0 and receivedTimer <= 1800)){
+        result = false;
+    }
+    //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms)
+    if(not(receivedPeriod == 1 or receivedPeriod == 2 or receivedPeriod == 5 or receivedPeriod == 10 or receivedPeriod == 20 or receivedPeriod == 80 or receivedPeriod == 160 or receivedPeriod == 640)){
+        result = false;
+    }
+    if (not(receivedNumSamples >= 1 and receivedNumSamples <= 50)){
+        result = false;
+    }
+    if (not(receivedX >= -1024 and receivedX <= 1024)){
+        result = false;
+    }
+    if (not(receivedY >= -1024 and receivedY <= 1024)){
+        result = false;
+    }
+    if (not(receivedThreshold >= 0 and receivedThreshold <= 1448)){
+        result = false;
+    }
+    return result;
 }
 
 //Updates the variables and stored values of each setting based on the input (received over BLE)
@@ -278,14 +305,37 @@ void updateSettings(string settings){
         characterArray = strtok(NULL, ",");
     }
 
-    //atoi parses a (pointer to a) char and returns its integer value
-    storeValue("timerValue", atoi(dataArray[0]));
-    storeValue("period", atoi(dataArray[1]));
-    storeValue("numSamples", atoi(dataArray[2]));
-    storeValue("x", atoi(dataArray[3]));
-    storeValue("y", atoi(dataArray[4]));
-    storeValue("threshold", atoi(dataArray[5]));
-    initialiseVariables(); //Updates all variables with the new values that have just been stored in memory
+    int receivedTimer = atoi(dataArray[0]);
+    int receivedPeriod = atoi(dataArray[1]);
+    int receivedNumSamples = atoi(dataArray[2]);
+    int receivedX = atoi(dataArray[3]);
+    int receivedY = atoi(dataArray[4]);
+    int receivedThreshold = atoi(dataArray[5]);
+
+    MicroBitImage result;
+    //If all settings are valid
+    if (validateSettings(receivedTimer, receivedPeriod, receivedNumSamples, receivedX, receivedY, receivedThreshold)){
+        //atoi parses a (pointer to a) char and returns its integer value
+        storeValue("timerValue", receivedTimer);
+        storeValue("period", receivedPeriod);
+        storeValue("numSamples", receivedNumSamples);
+        storeValue("x", receivedX);
+        storeValue("y", receivedY);
+        storeValue("threshold", receivedThreshold);
+        initialiseVariables(); //Updates all variables with the new values that have just been stored in memory
+
+        //Smiley face
+        result = MicroBitImage("0,0,0,0,0\n0,255,0,255,0\n0,0,0,0,0\n255,0,0,0,255\n0,255,255,255,0\n");        
+    }
+    else{ //Otherwise, leave settings as they are and inform the user that validation failed
+        uBit.serial.send("\r\nERROR: validation failed");
+        uBit.display.scroll("VALIDATION ERROR");
+        //Sad face
+        result = MicroBitImage("0,0,0,0,0\n0,255,0,255,0\n0,0,0,0,0\n0,255,255,255,0\n255,0,0,0,255\n");        
+    }
+
+    uBit.display.print(result); //Display smiley/sad face to indicate validation results
+    uBit.sleep(1000);
 
     //Debugging
     uBit.serial.send("\r\nCurrent timerValue:");
@@ -317,11 +367,41 @@ void onDisconnected(MicroBitEvent)
     connected = false;
 }
 
+void onButtonAB(MicroBitEvent){
+    //Buttons AB at the same time will reset the program to its initial state, as if it was flashed for the first time
+    //The user must press AB twice to reset, the first time will ask for confirmation
+    //Pressing either A or B during that time will exit "Reset Mode"
+    if (confirmReset == false){ //Ask confirmation before resetting
+        mode = 4; //Enter "Reset Mode"
+        uBit.sleep(500); //Allows time for the screen to fully clear and other asynchronous operations to finish
+        MicroBitImage question("0,255,255,255,0\n0,0,0,255,0\n0,0,255,255,0\n0,0,0,0,0\n0,0,255,0,0\n");
+        uBit.display.print(question);
+        confirmReset = true; //Next time AB is pressed, the program will reset, unless "Reset Mode" is exited before then
+    }
+    else{
+        //Remove all stored values
+        uBit.storage.remove("boot");
+        uBit.storage.remove("timerValue");
+        uBit.storage.remove("period");
+        uBit.storage.remove("numSamples");
+        uBit.storage.remove("x");
+        uBit.storage.remove("y");
+        uBit.storage.remove("threshold");
+        uBit.reset(); //Reset the program
+    }
+}
+
 //Toggles Connection Mode if either Button A or Button B is pressed on the micro:bit
 //In Connection Mode the micro:bit waits for a connection over BLE and starts the Accelerometer Service
 void onButtonB(MicroBitEvent)
 {
-    if (mode == 3){
+    if (mode == 4){ //If the micro:bit is in "Reset Mode" and have pushed Button B...
+        confirmReset = false; //...confirmation failed, so return to the main loop
+        mode = 0;
+        //uBit.serial.send("\r\nConnection Mode exited.");
+        create_fiber(beginChecking);
+    }
+    else if (mode == 3){
         //If the micro:bit is already in "Calibration Mode", then do nothing
     }
     else{
@@ -334,9 +414,6 @@ void onButtonB(MicroBitEvent)
             if (connected){ //Enter Settings Mode
                 uBit.display.scroll("Settings");
                 mode = 2;
-                uBit.display.stopAnimation();
-                uBit.display.clear();
-                uBit.sleep(100); //Allows time for the screen to clear before displaying the next image
                 MicroBitImage arrow("0,0,255,0,0\n0,255,0,0,0\n255,255,255,255,255\n0,255,0,0,0\n0,0,255,0,0\n");
                 uBit.display.print(arrow);
 
@@ -351,11 +428,6 @@ void onButtonB(MicroBitEvent)
                 uBit.serial.send(msg);
                 string settings(msg.toCharArray()); //Convert ManagedString to String
                 updateSettings(settings); //Update settings to the ones received over UART
-                
-                MicroBitImage smile("0,255,0,255,0\n0,255,0,255,0\n0,0,0,0,0\n255,0,0,0,255\n0,255,255,255,0\n");
-                //if validation: smile, othewise: sad. May need to go in updateSettings() or other function
-                uBit.display.print(smile);
-                uBit.sleep(1000);
                 
                 mode = 0; //Settings have been updated, so return to Vibration Checking Mode
                 create_fiber(beginChecking); //(re)enters main code loop
@@ -374,7 +446,13 @@ void onButtonB(MicroBitEvent)
 
 void onButtonA(MicroBitEvent)
 {
-    if (mode == 1){
+    if (mode == 4){ //If the micro:bit is in "Reset Mode" and have pushed Button A...
+        confirmReset = false; //...confirmation failed, so return to the main loop
+        mode = 0;
+        //uBit.serial.send("\r\nConnection Mode exited.");
+        create_fiber(beginChecking);
+    }
+    else if (mode == 1){
         //If the micro:bit is already in "Connection Mode" do nothing
     }
     else if (mode == 2){ //If the micro:bit is in Settings Mode
@@ -388,8 +466,11 @@ void onButtonA(MicroBitEvent)
         else{
             uBit.messageBus.ignore(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA); //Ignore the button listener while calibration happens
             uBit.messageBus.ignore(MICROBIT_ID_BUTTON_B, MICROBIT_BUTTON_EVT_CLICK, onButtonB); //Ignore the button listener while calibration happens
+            uBit.messageBus.ignore(MICROBIT_ID_BUTTON_AB, MICROBIT_BUTTON_EVT_CLICK, onButtonAB);
             calibrate(); //(re)calibrate the micro:bit's accelerometer values
             uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA); //Re-enables the button listener
+            uBit.messageBus.listen(MICROBIT_ID_BUTTON_B, MICROBIT_BUTTON_EVT_CLICK, onButtonB);
+            uBit.messageBus.listen(MICROBIT_ID_BUTTON_AB, MICROBIT_BUTTON_EVT_CLICK, onButtonAB);
             create_fiber(beginChecking); //(re)enters main code loop, where vibrations are continually checked
         }
     }
@@ -422,9 +503,10 @@ int main() {
     //Valid periods: 1, 2, 5, 10, 20, 80, 160 and 640 (ms)
     uBit.accelerometer.setPeriod(period); //Sets the accelerometer sample rate
 
-    //Set up listeners for Button A and Button B; runs the same function regardless of which button is pressed
+    //Set up button listeners
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA);
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_B, MICROBIT_BUTTON_EVT_CLICK, onButtonB);
+    uBit.messageBus.listen(MICROBIT_ID_BUTTON_AB, MICROBIT_BUTTON_EVT_CLICK, onButtonAB);
 
     create_fiber(beginChecking); //Enters main code loop, where vibrations are continually checked
     //Releases this fiber, meaning the program enters into the scheduler

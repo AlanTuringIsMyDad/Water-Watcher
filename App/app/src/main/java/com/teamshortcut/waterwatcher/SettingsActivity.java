@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -19,6 +20,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -33,6 +35,7 @@ import com.alespero.expandablecardview.ExpandableCardView;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
@@ -42,6 +45,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     //TODO: UUID conversion should be consistent (remove the formatUUID function and just use the java one)
     //TODO: update MainActivity with onServicesDiscovered
+    //TODO: fix app name resource not being discovered/displayed correctly
 
     //BLUETOOTH CONSTANTS
 
@@ -93,16 +97,137 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //Checks if a string consists of a valid integer
+    private boolean isInteger(String string){
+        try {
+            Integer.parseInt(string);
+            return true;
+        }
+        catch(NumberFormatException e){
+            return false;
+        }
+    }
+
+    //Validates settings before sending them over BLE
+    //Returning an empty string indicates success, otherwise it returns the error message to be displayed
+    private String validateSettings(String strTimer, String strPeriod, String strSamples, String strX, String strY, String strThreshold) {
+        String message = "";
+
+        if (!(isInteger(strTimer) && isInteger(strPeriod) && isInteger(strSamples) && isInteger(strX) && isInteger(strY) && isInteger(strThreshold))) {
+            message += "All inputs must be integers!\n";
+        }
+
+        //Try/catch statements are used to avoid type conversion errors, and to avoid duplicating the invalid type message that will be returned
+        try{
+            int timer = Integer.parseInt(strTimer);
+            if (!(timer >= 0 && timer <= 1800)){
+                message += "Timer Length must be between 0 and 1800 seconds!\n";
+            }
+        }
+        catch(NumberFormatException e){
+            Log.i("Invalid input", strTimer);
+        }
+
+        try{
+            //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms)
+            boolean periodRegex = Pattern.matches("^(1|2|5|10|20|80|160|640)$", strPeriod);
+            if(!(periodRegex)){
+                message += "Please select a valid Accelerometer Period from the list of approved values.\n";
+            }
+        }
+        catch(Exception e){
+            Log.i("Invalid input", strPeriod);
+        }
+
+        try{
+            int samples = Integer.parseInt(strSamples);
+            if (!(samples >= 1 && samples <= 50)){
+                message += "Number of Accelerometer Samples must be between 1 and 50!\n";
+            }
+        }
+        catch(NumberFormatException e){
+            Log.i("Invalid input", strSamples);
+        }
+
+        try{
+            int x = Integer.parseInt(strX);
+            if (!(x >= -1024 && x <= 1024)){
+                message += "The value of X must be between -1024 and 1024.\n";
+            }
+        }
+        catch(NumberFormatException e){
+            Log.i("Invalid input", strX);
+        }
+
+        try{
+            int y = Integer.parseInt(strY);
+            if (!(y >= -1024 && y <= 1024)){
+                message += "The value of Y must be between -1024 and 1024.\n";
+            }
+        }
+        catch(NumberFormatException e){
+            Log.i("Invalid input", strY);
+        }
+
+        try{
+            int threshold = Integer.parseInt(strThreshold);
+            if (!(threshold >= 0 && threshold <= 1448)){
+                message += "The Threshold must be between 0 and 1448.\n";
+            }
+        }
+        catch(NumberFormatException e){
+            Log.i("Invalid input", strThreshold);
+        }
+
+        return message;
+    }
+
+    //Returns the settings string that will be sent over BLE
     private String getAndFormatSettings(){
-        String settings;
+        String settings = null; //Returning null indicates a validation error
+
+        //Get all inputted data
         EditText timerEditText = (EditText) findViewById(R.id.timer_textbox);
+        String timer = String.valueOf(timerEditText.getText());
+
         Spinner periodSpinner = (Spinner) findViewById(R.id.period_spinner);
+        String period = periodSpinner.getSelectedItem().toString();
+
         EditText samplesEditText = (EditText) findViewById(R.id.samples_textbox);
+        String samples = String.valueOf(samplesEditText.getText());
+
         ExpandableCardView card = findViewById(R.id.advanced);
+
         EditText xEditText = card.findViewById(R.id.x_textbox);
+        String x = String.valueOf(xEditText.getText());
+
         EditText yEditText = card.findViewById(R.id.y_textbox);
+        String y = String.valueOf(yEditText.getText());
+
         EditText thresholdEditText = card.findViewById(R.id.threshold_textbox);
-        settings = timerEditText.getText() + "," + periodSpinner.getSelectedItem().toString() + "," + samplesEditText.getText() + "," + xEditText.getText() + "," + yEditText.getText() + "," + thresholdEditText.getText();
+        String threshold = String.valueOf(thresholdEditText.getText());
+
+        String result = validateSettings(timer, period, samples, x, y, threshold);
+        if (result == "") { //Validation returned no errors, so construct the settings string
+            settings = timer + "," + period + "," + samples + "," + x + "," + y + "," + threshold;
+        }
+        else{ //Validation returned errors, so display that to the user
+            AlertDialog.Builder builder;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                builder = new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert);
+            }
+            else {
+                builder = new AlertDialog.Builder(this);
+            }
+
+            //Constructs an Alert Dialog that displays the relevant validation error message(s)
+            builder.setTitle("Validation Error").setMessage(result).setNeutralButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    //do nothing
+                }
+            }).setIcon(android.R.drawable.ic_dialog_alert).show();
+        }
+
         return settings;
     }
 
@@ -222,14 +347,20 @@ public class SettingsActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (bluetoothManager.getConnectionState(targetDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED){
                     try {
-                        String text = getAndFormatSettings() + "\\";
-                        Log.i("Data", text);
-                        byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
-                        BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
-                        BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
-                        //Write (send) the bytearray to the micro:bit over BLE
-                        characteristic.setValue(ascii);
-                        gattClient.writeCharacteristic(characteristic);
+                        if (getAndFormatSettings() != null){
+                            String text = getAndFormatSettings() + "\\"; //micro:bit expects the data to be terminated with a backslash
+                            Log.i("Data", text);
+                            byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
+                            BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
+                            BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
+                            //Write (send) the bytearray to the micro:bit over BLE
+                            characteristic.setValue(ascii);
+                            gattClient.writeCharacteristic(characteristic);
+                        }
+                        else{
+                            Snackbar.make(view, "Invalid settings!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                            Log.e("Validation Error", "Invalid settings, error displayed in alert dialog");
+                        }
                     } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
