@@ -7,6 +7,7 @@
     <string name="microbit_found">micro:bit found</string>
     <string name="no_microbit_found">No corresponding micro:bit found</string>
     <string name="title_activity_settings">SettingsActivity</string>
+    <string name="title_activity_device_select">Select Device</string>
 
     <string-array name="periods">
         <item></item>
