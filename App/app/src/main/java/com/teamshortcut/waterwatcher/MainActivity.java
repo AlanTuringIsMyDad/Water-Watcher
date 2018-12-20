@@ -1,30 +1,22 @@
 package com.teamshortcut.waterwatcher;
 
-import android.Manifest;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothManager;
-import android.content.Context;
+import android.content.ComponentName;
 import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
 import android.support.annotation.RequiresApi;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.Toast;
 
 import com.jjoe64.graphview.DefaultLabelFormatter;
@@ -33,25 +25,19 @@ import com.jjoe64.graphview.LegendRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
-import java.lang.reflect.Method;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
+import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
-
-import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 
 //TODO: http://www.android-graphview.org/zooming-and-scrolling/
 //Add graph.getViewport().setScrollable(true); but only on disconnect? Otherwise fatal exception occurs
 //Check for BLE object if null? If not null then disable scroll?
 //TODO: label x axis as time in seconds and y axis as g-force(?)
+//TODO: rename MainActivity, refactor in debug messages and comments too
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
-    //GRAPH VARIABLES
-
+    /*Graph Variables*/
     //Used to store the data points that will be displayed to the graph
     private LineGraphSeries<DataPoint> xSeries;
     private LineGraphSeries<DataPoint> ySeries;
@@ -62,67 +48,95 @@ public class MainActivity extends AppCompatActivity {
 
     //Increments the current time by 1 millisecond
     Timer timer = new Timer();
-    TimerTask timerTask = new TimerTask(){
+    TimerTask timerTask = new TimerTask() {
         @Override
-        public void run(){
+        public void run() {
             currentTime += 1;
         }
     };
 
-    //BLUETOOTH CONSTANTS
+    /*Bluetooth Variables*/
+    private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
+    public static String TARGET_ADDRESS; //MAC address of the micro:bit
 
-    //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
-    public static String BLE_SIGNATURE_UUID_BASE_START = "0000";
-    public static String BLE_SIGNATURE_UUID_BASE_END = "-0000-1000-8000-00805f9b34fb";
+    public boolean bound = false; //Tracks if ConnectionService is bound //TODO: move to more appropriate activity
 
-    //Each Service has Characteristics, which are used to read/write data
-    public static String ACCELEROMETERSERVICE_SERVICE_UUID = "E95D0753251D470AA062FA1922DFA9A8";
-    public static String ACCELEROMETERDATA_CHARACTERISTIC_UUID = "E95DCA4B251D470AA062FA1922DFA9A8";
-    //public static String ACCELEROMETERPERIOD_CHARACTERISTIC_UUID = "E95DFB24251D470AA062FA1922DFA9A8";
-    public static String CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "2902"; //Used to indicate to the micro:bit that we would like to interact with BLE services
-
-    public static String TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E"; //MAC address of the micro:bit
-
-    //Numerical IDs, used internally
-    private final static int REQUEST_ENABLE_BT = 1;
-    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 10;
-
-    //Bluetooth variables
-    BluetoothAdapter bluetoothAdapter;
-    BluetoothDevice targetDevice;
-    BluetoothGatt gattClient; //The GATT Client is what scans and requests data over BLE; in this case, the Android device
-
-    //Defines what to happen upon a BLE scan
-    public final BluetoothAdapter.LeScanCallback scanCallback = new BluetoothAdapter.LeScanCallback() {
+    @SuppressLint("HandlerLeak") //TODO: remove
+    private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
-        public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-            if(bluetoothDevice.getAddress().equals(TARGET_ADDRESS)){ //Scans for the target micro:bit device until it is found
-                targetDevice = bluetoothDevice;
+        public void handleMessage(Message msg){
+            Bundle bundle; //The data the message contains
+            String serviceUUID = "";
+            String characteristicUUID = "";
+            String descriptorUUID = "";
+            byte[] bytes = null;
+
+            switch (msg.what){
+                case ConnectionService.GATT_CONNECTED: //Once a device has connected...
+                    connectionService.discoverServices(); //...discover its services
+                    break;
+                case ConnectionService.GATT_SERVICES_DISCOVERED:
+                    bundle = msg.getData();
+                    ArrayList<String> stringGattServices = bundle.getStringArrayList("GATT_SERVICES_LIST");
+
+                    if (stringGattServices == null || !stringGattServices.contains(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID )){ //Sometimes only generic services are initially found
+                        //If the required service isn't found, refresh and retry service discovery
+                        connectionService.refreshDeviceCache();
+                        connectionService.discoverServices();
+                    }
+                    else {
+                        //Sets up notifications for the Accelerometer Data characteristic
+                        connectionService.setCharacteristicNotification(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID);
+                        //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
+                        connectionService.setDescriptorValueAndWrite(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    }
+                    break;
+                case ConnectionService.GATT_DESCRIPTOR_WRITTEN:
+                    //Sends a simple byte array to tell the micro:bit to start streaming data
+                    connectionService.setCharacteristicValueAndWrite(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, new byte[]{1,1});
+                    break;
+                case ConnectionService.NOTIFICATION_INDICATION_RECEIVED: //A notification or indication has occurred so some data has been transmitted to the app
+                    bundle = msg.getData();
+                    serviceUUID = bundle.getString(ConnectionService.BUNDLE_SERVICE_UUID);
+                    characteristicUUID = bundle.getString(ConnectionService.BUNDLE_CHARACTERISTIC_UUID);
+                    descriptorUUID = bundle.getString(ConnectionService.BUNDLE_DESCRIPTOR_UUID);
+                    bytes = bundle.getByteArray(ConnectionService.BUNDLE_VALUE);
+
+                    if (characteristicUUID.equals(ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID)){ //If the received data is from the Accelerometer Data characteristic
+                        processData(bytes); //When data has been received over BLE, pass it to processData()
+                    }
+                    break;
             }
         }
     };
 
-    //TODO: combine both formatUUID functions
-    public static UUID formatUUIDShort(String uuid){
-        String formattedUUID;
-        formattedUUID = BLE_SIGNATURE_UUID_BASE_START+uuid+BLE_SIGNATURE_UUID_BASE_END;
-        return UUID.fromString(formattedUUID);
-    }
+    private final ServiceConnection serviceConnection = new ServiceConnection() { //The Android service for the ConnectionService class
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            connectionService = ((ConnectionService.LocalBinder) service).getService();
+            connectionService.setActivityHandler(messageHandler); //Assigns messageHandler to handle all messages from this service
 
-    //Used to insert "-"s into the UUID so it is in the format the micro:bit expects
-    public static UUID formatUUID(String uuid) {
-        String formattedUUID;
-        formattedUUID = uuid.substring(0,8) + "-" + uuid.substring(8,12) + "-" + uuid.substring(12,16) + "-" + uuid.substring(16,20) + "-" + uuid.substring(20,32);
-        return UUID.fromString(formattedUUID);
-    }
+            if (connectionService.connect(TARGET_ADDRESS)){ //Try to connect to the BLE device chosen in the device selection activity
+                Log.d("BLE Connected", "Successfully connected from MainActivity");
+            }
+            else{
+                Log.e("BLE Failed to connect", "Failed to connect from MainActivity");
+                Toast.makeText(getApplicationContext(), "Failed to connect", Toast.LENGTH_LONG).show();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            connectionService = null;
+        }
+    };
 
     //Used to convert a 2 byte array in Little Endian format to an integer
     public static short convertFromLittleEndianBytes(byte[] bytes) {
         //Checks a 2 byte array has been passed to the function
-        if ( bytes == null || bytes.length != 2){
+        if (bytes == null || bytes.length != 2) {
             return 0;
-        }
-        else{
+        } else {
             //Converts from a byte array in Little Endian format to a short (signed) and returns that value
             return java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).getShort();
         }
@@ -149,10 +163,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //Updates the graph with a new set of data points
-    private void updateGraph(short x, short y, short z, int absoluteValue){
+    private void updateGraph(short x, short y, short z, int absoluteValue) {
         //Start the timer, if it has not already been started
-        if (currentTime == 0){
-            timer.scheduleAtFixedRate(timerTask,0,1);
+        if (currentTime == 0) {
+            timer.scheduleAtFixedRate(timerTask, 0, 1);
         }
 
         //Add the accelerometer received over BLE to the corresponding series
@@ -164,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     //Sets up all graph settings and variables
-    private void initialiseGraph(){
+    private void initialiseGraph() {
         //Initialises the graph series to store the data points
         xSeries = new LineGraphSeries<>();
         ySeries = new LineGraphSeries<>();
@@ -178,10 +192,10 @@ public class MainActivity extends AppCompatActivity {
         absoluteSeries.setTitle("Absolute Value");
 
         //Sets the colour of each series' lines
-        xSeries.setColor(Color.RED);
+        xSeries.setColor(Color.BLUE);
         ySeries.setColor(Color.GREEN);
-        zSeries.setColor(Color.BLUE);
-        absoluteSeries.setColor(Color.YELLOW);
+        zSeries.setColor(Color.YELLOW);
+        absoluteSeries.setColor(Color.RED);
 
         //Links graph object to the correct XML element
         GraphView graph = (GraphView) findViewById(R.id.graph);
@@ -193,9 +207,8 @@ public class MainActivity extends AppCompatActivity {
                 if (isValueX) {
                     //The x axis should display the time in seconds since the data started streaming
                     //Because the current time is stored in milliseconds, the number that displays should be divided by 1000
-                    return String.valueOf(value/1000);
-                }
-                else {
+                    return String.valueOf(value / 1000);
+                } else {
                     return super.formatLabel(value, isValueX); //The y axis should be displayed as normal
                 }
             }
@@ -224,148 +237,32 @@ public class MainActivity extends AppCompatActivity {
         graph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
 
-    //Displays the accelerometer data to the screen by updating the TextViews
-    //Runs on the UI thread rather than directly on the Main thread for performance
-    private void displayAccelerometerValues(final short x, final short y, final short z){
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                //((TextView) MainActivity.this.findViewById(R.id.x)).setText("X = " + x);
-                //((TextView) MainActivity.this.findViewById(R.id.y)).setText("Y = " + y);
-                //((TextView) MainActivity.this.findViewById(R.id.z)).setText("Z = " + z);
-            }
-        });
-    }
-
-    //Called after a request for an Android permission
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_REQUEST_COARSE_LOCATION: {
-                //If request is cancelled, the result arrays are empty
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //Permission was granted, start the Bluetooth scan
-                    bluetoothAdapter.startLeScan(scanCallback);
-                } else {
-                    //Permission was denied
-                    Toast.makeText(getApplicationContext(), R.string.location_request, Toast.LENGTH_LONG).show();
-                }
-            }
-        }
-    }
-
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        //Initialises up BLE objects
-        final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        bluetoothAdapter = bluetoothManager.getAdapter(); //TODO: handle null exception?
-
-        //Ensures bluetooth is enabled
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
-
-        //Defines what to do when the device is connected; handles discovering and interacting with BLE services
-        final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-            @Override
-            public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                if (newState == STATE_CONNECTED){ //Once a device is connected...
-                    gatt.discoverServices(); //...discover its services
-                }
-            }
-
-            @Override
-            public void onServicesDiscovered(BluetoothGatt gatt, int status){
-                boolean enabled = true;
-
-                //Loops through all available services on the device
-                if (status == BluetoothGatt.GATT_SUCCESS){
-                    List<BluetoothGattService> gattServices = gatt.getServices();
-                    for (BluetoothGattService gattService : gattServices){
-                        Log.i("Services Discovered", gattService.getUuid().toString());
-                    }
-                }
-
-                //Gets the accelerometer service from GATT Client (the mobile phone)
-                BluetoothGattService accelerometerService = gatt.getService(formatUUID(ACCELEROMETERSERVICE_SERVICE_UUID));
-
-                //Sometimes only generic services are initially found, so the accelerometer service will return null even if it exists on the device
-                if (accelerometerService != null){
-                    BluetoothGattCharacteristic accelerometerCharacteristic = accelerometerService.getCharacteristic(formatUUID(ACCELEROMETERDATA_CHARACTERISTIC_UUID));
-
-                    //Sets up notifications for the Accelerometer Data characteristic. When the characteristic has changed (ie. data has been sent), onCharacteristicChanged() will be called
-                    gatt.setCharacteristicNotification(accelerometerCharacteristic, enabled);
-
-                    //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
-                    BluetoothGattDescriptor accelerometerDescriptor = accelerometerCharacteristic.getDescriptor(formatUUIDShort(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID));
-                    accelerometerDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                    gatt.writeDescriptor(accelerometerDescriptor);
-                }
-                else{ //If the accelerometer service was not found
-                    Log.e("BLE Services", "Accelerometer service not found");
-                    try{
-                        /*Android's BluetoothGatt has a method "refresh" that will clear the internal cache and force a refresh of the services from the device
-                        This is because Android only requests the device once to discover its services, and all subsequent calls to discoverServices simply fetch the cached results from the first call
-                        However, this method is normally inaccessible, and to call it, reflection - a feature of Java that allows the program to examine itself and manipulate its internal properties - must be used.
-                        Calling this "refresh" method will force a rediscovery of all BLE services, causing the non-generic services to be found if they weren't previously.
-                        */
-                        BluetoothGatt localGatt = gatt;
-                        Method localMethod = localGatt.getClass().getMethod("refresh", new Class[0]); //Gets the "refresh" method
-                        if (localMethod != null){
-                            boolean bool = ((Boolean) localMethod.invoke(localGatt, new Object[0])).booleanValue(); //Invokes the method, essentially forcing BLE services to be rediscovered
-                        }
-                    }
-                    catch (Exception localException){
-                        Log.e("BLE Services", "An exception occurred while refreshing the device");
-                    }
-                }
-            }
-
-            @Override
-            public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-                BluetoothGattCharacteristic characteristic = gatt.getService(formatUUID(ACCELEROMETERSERVICE_SERVICE_UUID)).getCharacteristic(formatUUID(ACCELEROMETERDATA_CHARACTERISTIC_UUID));
-                characteristic.setValue(new byte[]{1, 1}); //Sends a simple byte array to tell the micro:bit to start streaming data
-                gatt.writeCharacteristic(characteristic);
-            }
-
-            @Override
-            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                processData(characteristic.getValue()); //When data has been received over BLE, pass it to processData()
-            }
-        };
-
-        //If running Android M or higher, explicitly request location permission (necessary for Bluetooth)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
-        }
-        else{ //Otherwise, notify the user that location permission must be granted for Bluetooth to function correctly
-           Toast.makeText(getApplicationContext(), R.string.old_version_location_message, Toast.LENGTH_LONG).show();
-        }
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        //Read intent data from previous activity
+        Intent intent = getIntent();
+        String name = intent.getStringExtra("DEVICENAME");
+        String address = intent.getStringExtra("DEVICEADDRESS"); //TODO: change key to constant
+        Log.i("Intent Extras", name+address);
+
+        TARGET_ADDRESS = address; //The MAC address of the device to connect to should be the chosen one passed from the device selection activity
 
         //Sets up graph that BLE data will be displayed on
         initialiseGraph();
 
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (targetDevice == null){ //If targetDevice is null, the micro:bit has not yet been found in the BLE scan
-                    Snackbar.make(view, R.string.no_microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                }
-                else{
-                    Snackbar.make(view, R.string.microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                    gattClient = targetDevice.connectGatt(MainActivity.this, true, gattCallback); //Connects the GATT callback to start receiving data; autoConnect is set to True
-                }
-            }
-        });
+        if (!bound){ //If ConnectionService has not already been bound
+            //Start the ConnectionService and BLE communications
+            Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
+            ComponentName connectionServiceComponent = startService(connectionServiceIntent);
+            bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
+            bound = true;
+        }
     }
 
     @Override
