@@ -41,7 +41,6 @@ public class MainActivity extends AppCompatActivity {
     //Used to store the data points that will be displayed to the graph
     private LineGraphSeries<DataPoint> xSeries;
     private LineGraphSeries<DataPoint> ySeries;
-    private LineGraphSeries<DataPoint> zSeries;
     private LineGraphSeries<DataPoint> absoluteSeries;
 
     long currentTime = 0; //in milliseconds
@@ -144,26 +143,23 @@ public class MainActivity extends AppCompatActivity {
 
     //Accelerometer data is sent from the micro:bit as a byte array and needs to be converted to a signed integer
     private void processData(byte[] data) {
-        //BLE data must be split up into the x, y and z values
+        //BLE data must be split up into the x and y values
         byte[] xBytes = new byte[2];
         byte[] yBytes = new byte[2];
-        byte[] zBytes = new byte[2];
-        //Copies values from data into x/y/zBytes. System.arraycopy() is used for performance+efficiency
+        //Copies values from data into x/y Bytes. System.arraycopy() is used for performance+efficiency
         System.arraycopy(data, 0, xBytes, 0, 2);
         System.arraycopy(data, 2, yBytes, 0, 2);
-        System.arraycopy(data, 4, zBytes, 0, 2);
         //Data is in bytes in Little Endian form, and needs to be converted to an integer
         short x = convertFromLittleEndianBytes(xBytes);
         short y = convertFromLittleEndianBytes(yBytes);
-        short z = convertFromLittleEndianBytes(zBytes);
-        int absoluteValue = (int) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
-        Log.d("Data", "Accelerometer Data received at time " + currentTime + ": x=" + x + " y=" + y + " z=" + z + "absoluteValue= " + absoluteValue);
-        //displayAccelerometerValues(x, y, z);
-        updateGraph(x, y, z, absoluteValue);
+        int absoluteValue = (int) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+        Log.d("Data", "Accelerometer Data received at time " + currentTime + ": x=" + x + " y=" + y + "absoluteValue= " + absoluteValue);
+        //displayAccelerometerValues(x, y);
+        updateGraph(x, y, absoluteValue);
     }
 
     //Updates the graph with a new set of data points
-    private void updateGraph(short x, short y, short z, int absoluteValue) {
+    private void updateGraph(short x, short y, int absoluteValue) {
         //Start the timer, if it has not already been started
         if (currentTime == 0) {
             timer.scheduleAtFixedRate(timerTask, 0, 1);
@@ -172,7 +168,6 @@ public class MainActivity extends AppCompatActivity {
         //Add the accelerometer received over BLE to the corresponding series
         xSeries.appendData(new DataPoint(currentTime, x), true, 100);
         ySeries.appendData(new DataPoint(currentTime, y), true, 100);
-        zSeries.appendData(new DataPoint(currentTime, z), true, 100);
         absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), true, 100);
     }
 
@@ -182,19 +177,16 @@ public class MainActivity extends AppCompatActivity {
         //Initialises the graph series to store the data points
         xSeries = new LineGraphSeries<>();
         ySeries = new LineGraphSeries<>();
-        zSeries = new LineGraphSeries<>();
         absoluteSeries = new LineGraphSeries<>();
 
         //Sets the titles of each graph (used in the legend)
         xSeries.setTitle("X");
         ySeries.setTitle("Y");
-        zSeries.setTitle("Z");
         absoluteSeries.setTitle("Absolute Value");
 
         //Sets the colour of each series' lines
         xSeries.setColor(Color.BLUE);
         ySeries.setColor(Color.GREEN);
-        zSeries.setColor(Color.YELLOW);
         absoluteSeries.setColor(Color.RED);
 
         //Links graph object to the correct XML element
@@ -221,7 +213,6 @@ public class MainActivity extends AppCompatActivity {
         //Links the data series with the graph
         graph.addSeries(xSeries);
         graph.addSeries(ySeries);
-        graph.addSeries(zSeries);
         graph.addSeries(absoluteSeries);
 
         //Sets X and Y axis bounds

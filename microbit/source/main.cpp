@@ -76,6 +76,7 @@ int copyFromMemory(string key){
     KeyValuePair* storedValue = uBit.storage.get(managedKey);
         if(storedValue == NULL){ //If there is no current value associated with that key...
             result = getDefaultValue(key); //...resort to the default value
+            storeValue(key, result); //Store the default value so the error does not reoccur
             ManagedString error("ERROR");
             uBit.display.scroll(managedKey+error);
             uBit.serial.send("\r\nResorting to default stored value.");
