@@ -1,6 +1,7 @@
 package com.teamshortcut.waterwatcher;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -10,20 +11,30 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -34,6 +45,7 @@ import com.alespero.expandablecardview.ExpandableCardView;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -42,60 +54,92 @@ import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class SettingsActivity extends AppCompatActivity {
     //TODO: convert strings in .xml to the strings.xml file
-
-    //TODO: UUID conversion should be consistent (remove the formatUUID function and just use the java one)
-    //TODO: update MainActivity with onServicesDiscovered
     //TODO: fix app name resource not being discovered/displayed correctly
+    private DrawerLayout drawerLayout;
 
-    //BLUETOOTH CONSTANTS
+    /*Bluetooth Variables*/
+    private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
+    public static String TARGET_ADDRESS; //MAC address of the micro:bit
 
-    //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
-    public static String BLE_SIGNATURE_UUID_BASE_START = "0000";
-    public static String BLE_SIGNATURE_UUID_BASE_END = "-0000-1000-8000-00805f9b34fb";
-
-    //Each Service has Characteristics, which are used to read/write data
-    public static String UARTSERVICE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-    public static String UART_RX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; //Reads from the micro:bit
-    public static String UART_TX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; //Writes to the micro:bit
-    public static String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
-
-    public static String TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E"; //MAC address of the micro:bit
-
-    //Numerical IDs, used internally
-    private final static int REQUEST_ENABLE_BT = 1;
-    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 10;
-
-    //Bluetooth variables
-    BluetoothAdapter bluetoothAdapter;
-    BluetoothDevice targetDevice;
-    BluetoothGatt gattClient; //The GATT Client is what scans and requests data over BLE; in this case, the Android device
-
-    //Defines what to happen upon a BLE scan
-    public final BluetoothAdapter.LeScanCallback scanCallback = new BluetoothAdapter.LeScanCallback() {
+    @SuppressLint("HandlerLeak") //TODO: remove
+    private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
-        public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-            if(bluetoothDevice.getAddress().equals(TARGET_ADDRESS)){ //Scans for the target micro:bit device until it is found
-                targetDevice = bluetoothDevice;
+        public void handleMessage(Message msg){
+            Bundle bundle; //The data the message contains
+            String serviceUUID = "";
+            String characteristicUUID = "";
+            String descriptorUUID = "";
+            byte[] bytes = null;
+
+            switch (msg.what){
+                case ConnectionService.GATT_CONNECTED: //Once a device has connected...
+                    connectionService.discoverServices(); //...discover its services
+                    break;
+                case ConnectionService.GATT_SERVICES_DISCOVERED:
+                    bundle = msg.getData();
+                    ArrayList<String> stringGattServices = bundle.getStringArrayList("GATT_SERVICES_LIST");
+
+                    if (stringGattServices == null || !stringGattServices.contains(ConnectionService.UARTSERVICE_SERVICE_UUID )){ //Sometimes only generic services are initially found
+                        //If the required service isn't found, refresh and retry service discovery
+                        connectionService.refreshDeviceCache();
+                        connectionService.discoverServices();
+                    }
+                    else {
+                        //Sets up notifications for the Accelerometer Data characteristic
+                        //connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, true);
+                        //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
+                        connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+                    }
+                    break;
+//                case ConnectionService.GATT_DESCRIPTOR_WRITTEN:
+//                    //Sends a simple byte array to tell the micro:bit to start streaming data
+//                    connectionService.setCharacteristicValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, new byte[]{1,1});
+//                    break;
+                case ConnectionService.NOTIFICATION_INDICATION_RECEIVED: //A notification or indication has occurred so some data has been transmitted to the app
+                    bundle = msg.getData();
+                    serviceUUID = bundle.getString(ConnectionService.BUNDLE_SERVICE_UUID);
+                    characteristicUUID = bundle.getString(ConnectionService.BUNDLE_CHARACTERISTIC_UUID);
+                    descriptorUUID = bundle.getString(ConnectionService.BUNDLE_DESCRIPTOR_UUID);
+                    bytes = bundle.getByteArray(ConnectionService.BUNDLE_VALUE);
+
+                    if (characteristicUUID.equals(ConnectionService.UART_RX_CHARACTERISTIC_UUID)){ //If the received data is from the Accelerometer Data characteristic
+                       int length = bytes.length;
+                       String ascii = "NULL";
+                        try { //Convert from a bytearray to a string
+                            ascii = new String(bytes,"US-ASCII");
+                        } catch (UnsupportedEncodingException e) {
+                            e.printStackTrace();
+                            Log.i("BLE Data Received", "ENCODING ERROR");
+                        }
+                        Log.i("BLE Data Received", ascii);
+                    }
+                    break;
             }
         }
     };
 
-    //Called after a request for an Android permission
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_REQUEST_COARSE_LOCATION: {
-                //If request is cancelled, the result arrays are empty
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //Permission was granted, start the Bluetooth scan
-                    bluetoothAdapter.startLeScan(scanCallback);
-                } else {
-                    //Permission was denied
-                    Toast.makeText(getApplicationContext(), R.string.location_request, Toast.LENGTH_LONG).show();
+    private final ServiceConnection serviceConnection = new ServiceConnection() { //The Android service for the ConnectionService class
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            connectionService = ((ConnectionService.LocalBinder) service).getService();
+            connectionService.setActivityHandler(messageHandler); //Assigns messageHandler to handle all messages from this service
+
+            if (!connectionService.isEnabled()){ //!!! TODO: should be isConnected()
+                if (connectionService.connect(TARGET_ADDRESS)){ //Try to connect to the BLE device chosen in the device selection activity
+                    Log.d("BLE Connected", "Successfully connected from MainActivity");
+                }
+                else{
+                    Log.e("BLE Failed to connect", "Failed to connect from MainActivity");
+                    Toast.makeText(getApplicationContext(), "Failed to connect", Toast.LENGTH_LONG).show();
                 }
             }
         }
-    }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            connectionService = null;
+        }
+    };
 
     //Checks if a string consists of a valid integer
     private boolean isInteger(String string){
@@ -234,128 +278,59 @@ public class SettingsActivity extends AppCompatActivity {
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        //Initialises up BLE objects
-        final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        bluetoothAdapter = bluetoothManager.getAdapter(); //TODO: handle null exception?
-
-        //Ensures bluetooth is enabled
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
-
-        //Defines what to do when the device is connected; handles discovering and interacting with BLE services
-        final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-            @Override
-            public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                if (newState == STATE_CONNECTED){ //Once a device is connected...
-                    gatt.discoverServices(); //...discover its services
-                }
-            }
-
-            @Override
-            public void onServicesDiscovered(BluetoothGatt gatt, int status){
-                boolean enabled = true;
-                //Loops through all available services on the device
-                if (status == BluetoothGatt.GATT_SUCCESS){
-                    List<BluetoothGattService> gattServices = gatt.getServices();
-                    for (BluetoothGattService gattService : gattServices){
-                        Log.i("Services Discovered", gattService.getUuid().toString());
-                    }
-                }
-
-                //Gets the accelerometer service from GATT Client (the mobile phone)
-                BluetoothGattService uartService = gatt.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
-
-                //Sometimes only generic services are initially found, so the accelerometer service will return null even if it exists on the device
-                if (uartService != null){
-                    BluetoothGattCharacteristic uartReadCharacteristic = uartService.getCharacteristic(java.util.UUID.fromString(UART_RX_CHARACTERISTIC_UUID));
-
-                    //Sets up notifications for the Accelerometer Data characteristic. When the characteristic has changed (ie. data has been sent), onCharacteristicChanged() will be called
-                    gatt.setCharacteristicNotification(uartReadCharacteristic, enabled);
-
-                    //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
-                    BluetoothGattDescriptor uartDescriptor = uartReadCharacteristic.getDescriptor(java.util.UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG));
-                    uartDescriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-                    gatt.writeDescriptor(uartDescriptor);
-                }
-                else{ //If the UART service was not found
-                    Log.e("BLE Services", "Refreshing services");
-                    try{
-                        /*Android's BluetoothGatt has a method "refresh" that will clear the internal cache and force a refresh of the services from the device
-                        This is because Android only requests the device once to discover its services, and all subsequent calls to discoverServices simply fetch the cached results from the first call
-                        However, this method is normally inaccessible, and to call it, reflection - a feature of Java that allows the program to examine itself and manipulate its internal properties - must be used.
-                        Calling this "refresh" method will force a rediscovery of all BLE services, causing the non-generic services to be found if they weren't previously.
-                        */
-                        BluetoothGatt localGatt = gatt;
-                        Method localMethod = localGatt.getClass().getMethod("refresh", new Class[0]); //Gets the "refresh" method
-                        if (localMethod != null){
-                            boolean bool = ((Boolean) localMethod.invoke(localGatt, new Object[0])).booleanValue(); //Invokes the method, essentially forcing BLE services to be rediscovered
-                        }
-                    }
-                    catch (Exception localException){
-                        Log.e("BLE Services", "An exception occurred while refreshing the device");
-                    }
-                }
-            }
-
-            @Override
-            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                byte[] data  = characteristic.getValue(); //The data the micro:bit has sent over BLE
-                int length = data.length;
-                byte[] bytes = new byte[length];
-                System.arraycopy(data, 0, bytes, 0, length); //System.arraycopy() is used for performance+efficiency
-                String ascii = "NULL";
-                try { //Convert from a bytearray to a string
-                    ascii = new String(bytes,"US-ASCII");
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                    Log.i("BLE Data Received", "ENCODING ERROR");
-                }
-                Log.i("BLE Data Received", ascii);
-            }
-        };
-
-        //If running Android M or higher, explicitly request location permission (necessary for Bluetooth)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
-        }
-        else{ //Otherwise, notify the user that location permission must be granted for Bluetooth to function correctly
-            Toast.makeText(getApplicationContext(), R.string.old_version_location_message, Toast.LENGTH_LONG).show();
-        }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        ActionBar actionbar = getSupportActionBar();
+        actionbar.setDisplayHomeAsUpEnabled(true);
+        actionbar.setHomeAsUpIndicator(R.drawable.baseline_menu_white_24);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        drawerLayout = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        MenuItem current = navigationView.getMenu().getItem(2);
+        current.setChecked(true);
+
+        navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
-            public void onClick(View view) {
-                if (targetDevice == null){ //If targetDevice is null, the micro:bit has not yet been found in the BLE scan
-                    Snackbar.make(view, R.string.no_microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                menuItem.setChecked(true);
+
+                switch (menuItem.getItemId()){
+                    case R.id.device_select_drawer_item:
+
+                        break;
+                    case R.id.graph_drawer_item:
+                        Intent intent = new Intent(SettingsActivity.this, MainActivity.class);
+                        startActivity(intent);
+                        break;
+                    case R.id.settings_drawer_item:
+
+                        break;
+                    case R.id.instructions_drawer_item:
+
+                        break;
                 }
-                else{
-                    Snackbar.make(view, R.string.microbit_found, Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                    gattClient = targetDevice.connectGatt(SettingsActivity.this, false, gattCallback); //Connects the GATT callback to start receiving data; autoConnect is set to True
-                }
+
+                return true;
             }
         });
+
+        //Start the ConnectionService and BLE communications
+        Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
+        //ComponentName connectionServiceComponent = startService(connectionServiceIntent);
+        bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
 
         final Button button = (Button) findViewById(R.id.settings_button);
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                if (bluetoothManager.getConnectionState(targetDevice, BluetoothProfile.GATT) == BluetoothProfile.STATE_CONNECTED){
+                if (connectionService.isEnabled()){ //!!! TODO: should be isConnected()
                     try {
                         if (getAndFormatSettings() != null){
                             String text = getAndFormatSettings() + "\\"; //micro:bit expects the data to be terminated with a backslash
                             Log.i("Data", text);
                             byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
-                            BluetoothGattService gattService = gattClient.getService(java.util.UUID.fromString(UARTSERVICE_SERVICE_UUID));
-                            BluetoothGattCharacteristic characteristic = gattService.getCharacteristic(java.util.UUID.fromString(UART_TX_CHARACTERISTIC_UUID));
-                            //Write (send) the bytearray to the micro:bit over BLE
-                            characteristic.setValue(ascii);
-                            gattClient.writeCharacteristic(characteristic);
+                            connectionService.setCharacteristicValueAndWrite(connectionService.UARTSERVICE_SERVICE_UUID, connectionService.UART_TX_CHARACTERISTIC_UUID, ascii);
                         }
                         else{
                             Snackbar.make(view, "Invalid settings!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
@@ -371,5 +346,31 @@ public class SettingsActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        //connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, false);
+        try{
+            unbindService(serviceConnection);
+        }
+        catch (Exception e){
+
+        }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        switch (item.getItemId()){
+            case android.R.id.home:
+                drawerLayout.openDrawer(GravityCompat.START);
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 }

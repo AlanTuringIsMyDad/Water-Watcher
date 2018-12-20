@@ -177,7 +177,7 @@ public class ConnectionService extends Service {
 
     //Keeps the Bluetooth connection alive
     class KeepAlive implements Runnable{
-        int sleepTime = 1000; //In milliseconds
+        int sleepTime = 10000; //In milliseconds
         boolean running = false;
 
         public void start() {
@@ -267,6 +267,10 @@ public class ConnectionService extends Service {
         }
     }
 
+    public boolean isConnected(){
+        return connected;
+    }
+
     public boolean connect(final String address){
         if (bluetoothAdapter == null || address == null){
             Log.e("ConnectionService", "ERROR: null BluetoothAdapter");
@@ -304,7 +308,7 @@ public class ConnectionService extends Service {
     }
 
     //Enables notifications for a characteristic
-    public boolean setCharacteristicNotification(String service, String characteristic){
+    public boolean setCharacteristicNotification(String service, String characteristic, boolean enabled){
         //Convert Strings to UUIDs
         UUID serviceUUID = fromString(service);
         UUID characteristicUUID = fromString(characteristic);
@@ -324,7 +328,7 @@ public class ConnectionService extends Service {
         }
 
         //Enable notifications
-        bluetoothGatt.setCharacteristicNotification(bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID), true);
+        bluetoothGatt.setCharacteristicNotification(bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID), enabled);
         return true;
     }
 

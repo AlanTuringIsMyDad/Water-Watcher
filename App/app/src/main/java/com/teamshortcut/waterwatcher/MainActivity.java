@@ -11,11 +11,15 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
+import android.support.design.widget.NavigationView;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
@@ -37,6 +41,8 @@ import java.util.TimerTask;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class MainActivity extends AppCompatActivity {
+    private DrawerLayout drawerLayout;
+
     /*Graph Variables*/
     //Used to store the data points that will be displayed to the graph
     private LineGraphSeries<DataPoint> xSeries;
@@ -57,8 +63,6 @@ public class MainActivity extends AppCompatActivity {
     /*Bluetooth Variables*/
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
     public static String TARGET_ADDRESS; //MAC address of the micro:bit
-
-    public boolean bound = false; //Tracks if ConnectionService is bound //TODO: move to more appropriate activity
 
     @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
@@ -85,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     else {
                         //Sets up notifications for the Accelerometer Data characteristic
-                        connectionService.setCharacteristicNotification(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID);
+                        connectionService.setCharacteristicNotification(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, true);
                         //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
                         connectionService.setDescriptorValueAndWrite(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                     }
@@ -115,12 +119,14 @@ public class MainActivity extends AppCompatActivity {
             connectionService = ((ConnectionService.LocalBinder) service).getService();
             connectionService.setActivityHandler(messageHandler); //Assigns messageHandler to handle all messages from this service
 
-            if (connectionService.connect(TARGET_ADDRESS)){ //Try to connect to the BLE device chosen in the device selection activity
-                Log.d("BLE Connected", "Successfully connected from MainActivity");
-            }
-            else{
-                Log.e("BLE Failed to connect", "Failed to connect from MainActivity");
-                Toast.makeText(getApplicationContext(), "Failed to connect", Toast.LENGTH_LONG).show();
+            if (!connectionService.isConnected()){
+                if (connectionService.connect(TARGET_ADDRESS)){ //Try to connect to the BLE device chosen in the device selection activity
+                    Log.d("BLE Connected", "Successfully connected from MainActivity");
+                }
+                else{
+                    Log.e("BLE Failed to connect", "Failed to connect from MainActivity");
+                    Toast.makeText(getApplicationContext(), "Failed to connect", Toast.LENGTH_LONG).show();
+                }
             }
         }
 
@@ -235,6 +241,39 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        ActionBar actionbar = getSupportActionBar();
+        actionbar.setDisplayHomeAsUpEnabled(true);
+        actionbar.setHomeAsUpIndicator(R.drawable.baseline_menu_white_24);
+
+        drawerLayout = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        MenuItem current = navigationView.getMenu().getItem(1);
+        current.setChecked(true);
+
+        navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                menuItem.setChecked(true);
+
+                switch (menuItem.getItemId()){
+                    case R.id.device_select_drawer_item:
+
+                        break;
+                    case R.id.graph_drawer_item:
+
+                        break;
+                    case R.id.settings_drawer_item:
+                        Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+                        startActivity(intent);
+                        break;
+                    case R.id.instructions_drawer_item:
+
+                        break;
+                }
+
+                return true;
+            }
+        });
 
         //Read intent data from previous activity
         Intent intent = getIntent();
@@ -243,24 +282,35 @@ public class MainActivity extends AppCompatActivity {
         Log.i("Intent Extras", name+address);
 
         TARGET_ADDRESS = address; //The MAC address of the device to connect to should be the chosen one passed from the device selection activity
+        //TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E";
 
         //Sets up graph that BLE data will be displayed on
         initialiseGraph();
 
-        if (!bound){ //If ConnectionService has not already been bound
-            //Start the ConnectionService and BLE communications
-            Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
-            ComponentName connectionServiceComponent = startService(connectionServiceIntent);
-            bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
-            bound = true;
-        }
+        //Start the ConnectionService and BLE communications
+        Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
+        //ComponentName connectionServiceComponent = startService(connectionServiceIntent);
+        bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
+
+//        if (!bound){ //If ConnectionService has not already been bound
+//            //Start the ConnectionService and BLE communications
+//            Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
+//            ComponentName connectionServiceComponent = startService(connectionServiceIntent);
+//            bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
+//            bound = true;
+//        }
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
+    protected void onDestroy(){
+        super.onDestroy();
+        connectionService.setCharacteristicNotification(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, false);
+        try{
+            unbindService(serviceConnection);
+        }
+        catch (Exception e){
+
+        }
     }
 
     @Override
@@ -268,11 +318,10 @@ public class MainActivity extends AppCompatActivity {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        switch (item.getItemId()){
+            case android.R.id.home:
+                drawerLayout.openDrawer(GravityCompat.START);
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
