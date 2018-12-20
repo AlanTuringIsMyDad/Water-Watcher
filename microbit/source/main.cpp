@@ -1,6 +1,3 @@
-//TODO: adjust sensitivity, may need to reduce sampling rate, change timer functionality...
-//...or tweak threshold; sqrt(differences squared) or (xdiff+ydiff)/2 ? Mean seems to be accurate at the moment, check actual threshold numbers that you get out of it)
-
 #include <algorithm> //Used to sort arrays
 #include <cmath> //Used for absolute values
 #include <map> //Used to store default values
@@ -11,6 +8,8 @@ MicroBit uBit; //An instance of the micro:bit class; used to interact with micro
 MicroBitUARTService *uart;
 
 /*
+Due to memory issues, the program  generally does not use global variables.
+Instead, the following values are stored in persistent memory, rather than in global variabes:
 x and y : 'off' values for the accelerometer
 threshold : Above this threshold, there are considered to be vibrations. Calculated later in the program
 numSamples : The number of samples taken in checkVibrations()
@@ -22,7 +21,7 @@ The program uses an integer timer variable and uBit.sleep() calls, rather than a
 This is done mainly to conserve memory, as memory on the micro:bit is very limited and needed for other services like BLE.
 However, it also serves to ensure fibers or other tasks (such as checkVibrations() or using uBit.display) have time to complete and display correctly.
 */
-int x, y, threshold, numSamples, period, timerValue, timer;
+int timer;
 
 //A map (or dictionary) of default values for different variables
 //Used as a last resort if something goes wrong in retrieving/assigning data
@@ -88,26 +87,17 @@ int copyFromMemory(string key){
     return result;
 }
 
-//Load previously stored values from memory and assign them to the relevant variables
-void initialiseVariables(){
-    threshold = copyFromMemory("threshold");
-    x = copyFromMemory("x");
-    y = copyFromMemory("y");
-    timerValue = copyFromMemory("timerValue");
-    period = copyFromMemory("period");
-    numSamples = copyFromMemory("numSamples");
-}
-
 //Uses the accelerometer to check for vibrations
 bool checkVibrations(){
     //Calculates the amount of time to sleep between sampling the accelerometer
+    int numSamples = copyFromMemory("numSamples");
     int sleepTime = round(500 / numSamples);
 
     //For improved accuracy, the function samples the accelerometer multiple times at intervals adding up to 500ms in total
     int count = 0; //Keeps track of the number of times the vibrations are above the threshold
     for (int i=0; i<numSamples; i++) {
         //If the absolute value of the difference of the x and y accelerometer values is over the threshold...
-        if (sqrt(pow((x - uBit.accelerometer.getX()), 2) + pow((y - uBit.accelerometer.getY()), 2)) > threshold){
+        if (sqrt(pow((copyFromMemory("x") - uBit.accelerometer.getX()), 2) + pow((copyFromMemory("y") - uBit.accelerometer.getY()), 2)) > copyFromMemory("threshold")){
             count = count + 1; //...increment count by 1
         }
         uBit.sleep(sleepTime);
@@ -145,20 +135,18 @@ void reset(bool toggle) {
 
     if (toggle == false){
         //Assigns the median x and y values to the 'off' variables
-        x = xList[1];
-        y = yList[1];
 
         //Stores the X and Y "off" values in memory
-        storeValue("x", x);
-        storeValue("y", y);
+        storeValue("x", xList[1]);
+        storeValue("y", yList[1]);
     }
     else{
         //WARNING: relies on correct x and y 'off' or 'nothing' values being assigned already!
 
         //Takes the difference of the 'nothing' values and the 'on' values and  assigns the average as the threshold.
-        int xdiff = fabs(fabs(x) - fabs(xList[1]));
-        int ydiff = fabs(fabs(y) - fabs(yList[1]));
-        threshold = (xdiff + ydiff) / 2;
+        int xdiff = fabs(fabs(copyFromMemory("x")) - fabs(xList[1]));
+        int ydiff = fabs(fabs(copyFromMemory("y")) - fabs(yList[1]));
+        int threshold = (xdiff + ydiff) / 2;
         //threshold = sqrt(pow(fabs(fabs(x) - fabs(xList[1])), 2) + pow(fabs(fabs(y) - fabs(yList[1])), 2));
         
         //Stores the threshold in memory
@@ -196,19 +184,12 @@ void calibrate(){
             }
         }
     }
-
-    //Debugging over serial
-    uBit.serial.send("\r\n'off' X:");
-    uBit.serial.send(x);
-    uBit.serial.send("\r\n'off' Y:");
-    uBit.serial.send(y);
-    uBit.serial.send("\r\nThreshold:");
-    uBit.serial.send(threshold);
     mode = 0; //Exit "Calibration Mode"
 }
 
 //The main code loop
 void beginChecking(){
+    int timerValue = copyFromMemory("timerValue");
     timer = timerValue;
     //MicroBitImage with all LEDs on, use to flash an alert when timer reaches 0
     MicroBitImage on("255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n255,255,255,255,255\n");
@@ -270,8 +251,8 @@ bool validateSettings(int receivedTimer, int receivedPeriod, int receivedNumSamp
     if (not(receivedTimer >= 0 and receivedTimer <= 1800)){
         result = false;
     }
-    //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms)
-    if(not(receivedPeriod == 1 or receivedPeriod == 2 or receivedPeriod == 5 or receivedPeriod == 10 or receivedPeriod == 20 or receivedPeriod == 80 or receivedPeriod == 160 or receivedPeriod == 640)){
+    //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms) but it can only handle 10ms minimum or memory leaks occur
+    if(not(receivedPeriod == 10 or receivedPeriod == 20 or receivedPeriod == 80 or receivedPeriod == 160 or receivedPeriod == 640)){
         result = false;
     }
     if (not(receivedNumSamples >= 1 and receivedNumSamples <= 50)){
@@ -306,6 +287,7 @@ void updateSettings(string settings){
         characterArray = strtok(NULL, ",");
     }
 
+    //atoi parses a (pointer to a) char and returns its integer value
     int receivedTimer = atoi(dataArray[0]);
     int receivedPeriod = atoi(dataArray[1]);
     int receivedNumSamples = atoi(dataArray[2]);
@@ -313,17 +295,30 @@ void updateSettings(string settings){
     int receivedY = atoi(dataArray[4]);
     int receivedThreshold = atoi(dataArray[5]);
 
+    //Debugging
+    uBit.serial.send("\r\nCurrent timerValue:");
+    uBit.serial.send(receivedTimer);
+    uBit.serial.send("\r\nCurrent period:");
+    uBit.serial.send(receivedPeriod);
+    uBit.serial.send("\r\nCurrent numSamples:");
+    uBit.serial.send(receivedNumSamples);
+    uBit.serial.send("\r\nCurrent X:");
+    uBit.serial.send(receivedX);
+    uBit.serial.send("\r\nCurrent Y:");
+    uBit.serial.send(receivedY);
+    uBit.serial.send("\r\nCurrent threshold:");
+    uBit.serial.send(receivedThreshold);
+
     MicroBitImage result;
     //If all settings are valid
     if (validateSettings(receivedTimer, receivedPeriod, receivedNumSamples, receivedX, receivedY, receivedThreshold)){
-        //atoi parses a (pointer to a) char and returns its integer value
         storeValue("timerValue", receivedTimer);
         storeValue("period", receivedPeriod);
         storeValue("numSamples", receivedNumSamples);
         storeValue("x", receivedX);
         storeValue("y", receivedY);
         storeValue("threshold", receivedThreshold);
-        initialiseVariables(); //Updates all variables with the new values that have just been stored in memory
+        uBit.accelerometer.setPeriod(receivedPeriod);
 
         //Smiley face
         result = MicroBitImage("0,0,0,0,0\n0,255,0,255,0\n0,0,0,0,0\n255,0,0,0,255\n0,255,255,255,0\n");        
@@ -337,20 +332,6 @@ void updateSettings(string settings){
 
     uBit.display.print(result); //Display smiley/sad face to indicate validation results
     uBit.sleep(1000);
-
-    //Debugging
-    uBit.serial.send("\r\nCurrent timerValue:");
-    uBit.serial.send(timerValue);
-    uBit.serial.send("\r\nCurrent period:");
-    uBit.serial.send(period);
-    uBit.serial.send("\r\nCurrent numSamples:");
-    uBit.serial.send(numSamples);
-    uBit.serial.send("\r\nCurrent X:");
-    uBit.serial.send(x);
-    uBit.serial.send("\r\nCurrent Y:");
-    uBit.serial.send(y);
-    uBit.serial.send("\r\nCurrent threshold:");
-    uBit.serial.send(threshold);
 }
 
 void onConnected(MicroBitEvent)
@@ -494,15 +475,13 @@ int main() {
         storeValue("numSamples", getDefaultValue("numSamples"));
 
         calibrate(); //Start calibration
-        initialiseVariables();
     }
     else{ //Otherwise, the micro:bit has been booted at least once before and should have previously stored values in memory
         delete firstTime; //Removes the object from the micro:bit's (volatile) memory
-        initialiseVariables();
     }
 
     //Valid periods: 1, 2, 5, 10, 20, 80, 160 and 640 (ms)
-    uBit.accelerometer.setPeriod(period); //Sets the accelerometer sample rate
+    uBit.accelerometer.setPeriod(copyFromMemory("period")); //Sets the accelerometer sample rate
 
     //Set up button listeners
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_A, MICROBIT_BUTTON_EVT_CLICK, onButtonA);

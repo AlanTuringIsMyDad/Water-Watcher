@@ -86,7 +86,7 @@ public class SettingsActivity extends AppCompatActivity {
                     }
                     else {
                         //Sets up notifications for the Accelerometer Data characteristic
-                        //connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, true);
+                        connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, true);
                         //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
                         connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
                     }
@@ -124,7 +124,7 @@ public class SettingsActivity extends AppCompatActivity {
             connectionService = ((ConnectionService.LocalBinder) service).getService();
             connectionService.setActivityHandler(messageHandler); //Assigns messageHandler to handle all messages from this service
 
-            if (!connectionService.isEnabled()){ //!!! TODO: should be isConnected()
+            if (!connectionService.isConnected()){
                 if (connectionService.connect(TARGET_ADDRESS)){ //Try to connect to the BLE device chosen in the device selection activity
                     Log.d("BLE Connected", "Successfully connected from MainActivity");
                 }
@@ -173,8 +173,8 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         try{
-            //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms)
-            boolean periodRegex = Pattern.matches("^(1|2|5|10|20|80|160|640)$", strPeriod);
+            //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms) but micro:bit memory can only handle 10ms minimum
+            boolean periodRegex = Pattern.matches("^(10|20|80|160|640)$", strPeriod);
             if(!(periodRegex)){
                 message += "Please select a valid Accelerometer Period from the list of approved values.\n";
             }
@@ -324,19 +324,20 @@ public class SettingsActivity extends AppCompatActivity {
         final Button button = (Button) findViewById(R.id.settings_button);
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                if (connectionService.isEnabled()){ //!!! TODO: should be isConnected()
+                if (connectionService.isConnected()){
                     try {
                         if (getAndFormatSettings() != null){
                             String text = getAndFormatSettings() + "\\"; //micro:bit expects the data to be terminated with a backslash
                             Log.i("Data", text);
                             byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
-                            connectionService.setCharacteristicValueAndWrite(connectionService.UARTSERVICE_SERVICE_UUID, connectionService.UART_TX_CHARACTERISTIC_UUID, ascii);
+                            connectionService.setCharacteristicValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_TX_CHARACTERISTIC_UUID, ascii);
                         }
                         else{
                             Snackbar.make(view, "Invalid settings!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
                             Log.e("Validation Error", "Invalid settings, error displayed in alert dialog");
                         }
-                    } catch (UnsupportedEncodingException e) {
+                    }
+                    catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
                 }
@@ -351,7 +352,8 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onDestroy(){
         super.onDestroy();
-        //connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, false);
+        connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, false);
+        connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
         try{
             unbindService(serviceConnection);
         }

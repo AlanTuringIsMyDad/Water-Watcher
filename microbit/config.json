@@ -11,7 +11,7 @@
             "tx_power": 0,
             "dfu_service": 0,
             "event_service": 0,
-            "device_info_service": 1
+            "device_info_service": 0
         },
         "nested_heap_proportion": 0.50,
         "gatt_table_size": "0x700"

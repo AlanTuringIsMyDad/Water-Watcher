@@ -94,7 +94,7 @@
                     android:id="@+id/samples_textbox"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
-                    android:hint="30"
+                    android:hint="5"
                     android:inputType="textMultiLine" />
 
             </LinearLayout>

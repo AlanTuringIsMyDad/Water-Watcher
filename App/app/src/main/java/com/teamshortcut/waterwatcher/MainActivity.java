@@ -172,9 +172,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //Add the accelerometer received over BLE to the corresponding series
-        xSeries.appendData(new DataPoint(currentTime, x), true, 100);
-        ySeries.appendData(new DataPoint(currentTime, y), true, 100);
-        absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), true, 100);
+        xSeries.appendData(new DataPoint(currentTime, x), true, 1000);
+        ySeries.appendData(new DataPoint(currentTime, y), true, 1000);
+        absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), true, 1000);
     }
 
 
@@ -282,29 +282,20 @@ public class MainActivity extends AppCompatActivity {
         Log.i("Intent Extras", name+address);
 
         TARGET_ADDRESS = address; //The MAC address of the device to connect to should be the chosen one passed from the device selection activity
-        //TARGET_ADDRESS = "C7:D7:2F:2F:2D:8E";
 
         //Sets up graph that BLE data will be displayed on
         initialiseGraph();
 
         //Start the ConnectionService and BLE communications
         Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
-        //ComponentName connectionServiceComponent = startService(connectionServiceIntent);
         bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
-
-//        if (!bound){ //If ConnectionService has not already been bound
-//            //Start the ConnectionService and BLE communications
-//            Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
-//            ComponentName connectionServiceComponent = startService(connectionServiceIntent);
-//            bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
-//            bound = true;
-//        }
     }
 
     @Override
     protected void onDestroy(){
         super.onDestroy();
         connectionService.setCharacteristicNotification(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, false);
+        connectionService.setDescriptorValueAndWrite(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
         try{
             unbindService(serviceConnection);
         }
