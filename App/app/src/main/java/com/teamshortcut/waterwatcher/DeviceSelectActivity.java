@@ -175,10 +175,10 @@ public class DeviceSelectActivity extends AppCompatActivity {
                     button.setText("Start Scanning");
                 }
                 //Launch MainActivity, passing the name and address of the selected BluetoothDevice
-                Intent intent = new Intent(DeviceSelectActivity.this, MainActivity.class);
-                intent.putExtra("DEVICENAME", targetDevice.getName());
+                Intent intent = new Intent(DeviceSelectActivity.this, InstructionsActivity.class);
                 intent.putExtra("DEVICEADDRESS", targetDevice.getAddress());
                 startActivity(intent);
+                finish(); //Destroys this activity
             }
         });
     }

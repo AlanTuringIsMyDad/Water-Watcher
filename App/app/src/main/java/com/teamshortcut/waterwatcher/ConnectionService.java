@@ -45,13 +45,8 @@ public class ConnectionService extends Service {
 
     //BLUETOOTH UUID CONSTANTS
     //Each Service has Characteristics, which are used to read/write data
-
-    //Should be in the form "0000AAAA-0000-1000-8000-00805f9b34fb" where "AAAA" is to be replaced
-    public static String BLE_SIGNATURE_UUID_BASE_START = "0000";
-    public static String BLE_SIGNATURE_UUID_BASE_END = "-0000-1000-8000-00805f9b34fb";
-
-    public static String DEVICEINFORMATION_SERVICE_UUID = "0000180a-0000-1000-8000-00805f9b34fb";
-    public static String FIRMWAREREVISIONSTRING_CHARACTERISTIC_UUID = "00002a26-0000-1000-8000-00805f9b34fb";
+    public static String GENERICACCESS_SERVICE_UUID = "00001800-0000-1000-8000-00805f9b34fb";
+    public static String DEVICENAME_CHARACTERISTIC_UUID = "00002a00-0000-1000-8000-00805f9b34fb";
     public static String ACCELEROMETERSERVICE_SERVICE_UUID = "e95d0753-251d-470a-a062-fa1922dfa9a8";
     public static String ACCELEROMETERDATA_CHARACTERISTIC_UUID = "e95dca4b-251d-470a-a062-fa1922dfa9a8";
     public static String ACCELEROMETERPERIOD_CHARACTERISTIC_UUID = "e95dfb24-251d-470a-a062-fa1922dfa9A8";
@@ -64,12 +59,12 @@ public class ConnectionService extends Service {
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothGatt bluetoothGatt;
     private BluetoothManager bluetoothManager;
-    private BluetoothDevice device = null;
+    private BluetoothDevice device;
 
-    private Handler activityHandler = null; //The handler assigned to this service
+    private Handler activityHandler; //The handler assigned to this service
 
     private long timestamp; //The current System time in milliseconds at the time of last BLE activity
-    private KeepAlive keepAlive = new KeepAlive(); //Creates an instance of the KeepAlive class where timestamp is used
+    private KeepAlive keepAlive; //Creates an instance of the KeepAlive class where timestamp is used
 
     private boolean connected = false; //Tracks connection state
     private boolean servicesDiscovered = false; //Tracks if services have been discovered yet
@@ -81,6 +76,17 @@ public class ConnectionService extends Service {
     }
 
     private final IBinder binder = new LocalBinder();
+
+    private void initialiseVariables(){ //Resets all variables to their default values, ready for a new connection
+        bluetoothAdapter = null;
+        bluetoothGatt = null;
+        bluetoothManager = null;
+        device = null;
+        keepAlive = new KeepAlive();
+        timestamp = 0;
+        connected = false;
+        servicesDiscovered = false;
+    }
 
     /*Defines what to do in various Bluetooth situations
     Passes messages back to the current activity, so that the Bluetooth event can be handled according
@@ -209,13 +215,13 @@ public class ConnectionService extends Service {
                 //If the time since last BLE activity is more than the specified timeout in milliseconds and the device is still connected, interact with the connection to keep it alive
                 if (running && ((System.currentTimeMillis() - timestamp) > sleepTime)){
                     if (connected && servicesDiscovered){ //If device is still connected and its services have been discovered
-                        Log.d("ConnectionService", "Keeping connection alive by reading firmware");
+                        Log.d("ConnectionService", "Keeping connection alive by reading device name");
                         try{
-                            bluetoothGatt.readCharacteristic(bluetoothGatt.getService(fromString(DEVICEINFORMATION_SERVICE_UUID)).getCharacteristic(fromString(FIRMWAREREVISIONSTRING_CHARACTERISTIC_UUID)));
+                            bluetoothGatt.readCharacteristic(bluetoothGatt.getService(fromString(GENERICACCESS_SERVICE_UUID)).getCharacteristic(fromString(DEVICENAME_CHARACTERISTIC_UUID)));
                             setTimestamp();
                         }
                         catch (NullPointerException e){
-                            Log.e("ConnectionService", "Read Device Information service and Firmware characteristic failed due to null pointer exception, service may not be enabled on the micro:bit");
+                            Log.e("ConnectionService", "Read Generic Access service and Device Name characteristic failed due to null pointer exception, service may not be enabled on the micro:bit");
                         }
                     }
                     else{
@@ -242,6 +248,7 @@ public class ConnectionService extends Service {
 
     @Override
     public void onCreate() {
+        initialiseVariables();
         //Get a new BluetoothManager is there is not one already
         if (bluetoothManager == null){
             bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -253,6 +260,11 @@ public class ConnectionService extends Service {
         if (bluetoothAdapter == null){
             return;
         }
+    }
+
+    @Override
+    public void onDestroy(){ //Runs when the service is stopped, meaning the connection has been terminated
+        initialiseVariables();
     }
 
     public boolean isEnabled(){ //If Bluetooth is enabled and variables are initialised
@@ -286,7 +298,6 @@ public class ConnectionService extends Service {
         //Starts a connection to the device with the GattCallback defined above
         bluetoothGatt = device.connectGatt(this, false, gattCallback);
         Log.d("ConnectionService", "Successfully connected");
-        connected = true;
         return true;
     }
 
@@ -359,8 +370,8 @@ public class ConnectionService extends Service {
 
         BluetoothGattDescriptor valueDescriptor = bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID).getDescriptor(descriptorUUID);
         valueDescriptor.setValue(value); //Set the value of the descriptor
-        bluetoothGatt.writeDescriptor(valueDescriptor); //Write the value of the descriptor to the device
-        return true;
+        boolean result = bluetoothGatt.writeDescriptor(valueDescriptor); //Write the value of the descriptor to the device
+        return result;
     }
 
     //Set value for a characteristic and then write it

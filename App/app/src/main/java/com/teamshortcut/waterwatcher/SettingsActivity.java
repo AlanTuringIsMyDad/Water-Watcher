@@ -59,7 +59,6 @@ public class SettingsActivity extends AppCompatActivity {
 
     /*Bluetooth Variables*/
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
-    public static String TARGET_ADDRESS; //MAC address of the micro:bit
 
     @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
@@ -74,6 +73,9 @@ public class SettingsActivity extends AppCompatActivity {
             switch (msg.what){
                 case ConnectionService.GATT_CONNECTED: //Once a device has connected...
                     connectionService.discoverServices(); //...discover its services
+                    break;
+                case ConnectionService.GATT_DISCONNECTED:
+                    Toast.makeText(getApplicationContext(), "Device was disconnected.", Toast.LENGTH_LONG).show();
                     break;
                 case ConnectionService.GATT_SERVICES_DISCOVERED:
                     bundle = msg.getData();
@@ -102,6 +104,10 @@ public class SettingsActivity extends AppCompatActivity {
                     descriptorUUID = bundle.getString(ConnectionService.BUNDLE_DESCRIPTOR_UUID);
                     bytes = bundle.getByteArray(ConnectionService.BUNDLE_VALUE);
 
+                    Log.i("BLE Data Received", serviceUUID);
+                    Log.i("BLE Data Received", characteristicUUID);
+                    Log.i("BLE Data Received", String.valueOf(bytes));
+
                     if (characteristicUUID.equals(ConnectionService.UART_RX_CHARACTERISTIC_UUID)){ //If the received data is from the Accelerometer Data characteristic
                        int length = bytes.length;
                        String ascii = "NULL";
@@ -124,14 +130,11 @@ public class SettingsActivity extends AppCompatActivity {
             connectionService = ((ConnectionService.LocalBinder) service).getService();
             connectionService.setActivityHandler(messageHandler); //Assigns messageHandler to handle all messages from this service
 
-            if (!connectionService.isConnected()){
-                if (connectionService.connect(TARGET_ADDRESS)){ //Try to connect to the BLE device chosen in the device selection activity
-                    Log.d("BLE Connected", "Successfully connected from MainActivity");
-                }
-                else{
-                    Log.e("BLE Failed to connect", "Failed to connect from MainActivity");
-                    Toast.makeText(getApplicationContext(), "Failed to connect", Toast.LENGTH_LONG).show();
-                }
+            if (connectionService.isConnected()){
+                //Sets up notifications for the Accelerometer Data characteristic
+                connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, true);
+                //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
+                connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
             }
         }
 
@@ -278,6 +281,7 @@ public class SettingsActivity extends AppCompatActivity {
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //Sets up toolbar and navigation bar
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -295,20 +299,31 @@ public class SettingsActivity extends AppCompatActivity {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
                 menuItem.setChecked(true);
+                Intent intent;
 
                 switch (menuItem.getItemId()){
                     case R.id.device_select_drawer_item:
+                        //Device Select activity will be launched, so disconnect from the current device and stop the Connection Service
+                        connectionService.disconnect();
+                        Intent connectionServiceIntent = new Intent(SettingsActivity.this, ConnectionService.class);
+                        stopService(connectionServiceIntent);
 
+                        intent = new Intent(SettingsActivity.this, DeviceSelectActivity.class);
+                        startActivity(intent);
+                        finish();
                         break;
                     case R.id.graph_drawer_item:
-                        Intent intent = new Intent(SettingsActivity.this, MainActivity.class);
+                        intent = new Intent(SettingsActivity.this, MainActivity.class);
                         startActivity(intent);
+                        finish();
                         break;
                     case R.id.settings_drawer_item:
-
+                        drawerLayout.closeDrawers();
                         break;
                     case R.id.instructions_drawer_item:
-
+                        intent = new Intent(SettingsActivity.this, InstructionsActivity.class);
+                        startActivity(intent);
+                        finish();
                         break;
                 }
 
@@ -353,7 +368,7 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onDestroy(){
         super.onDestroy();
         connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, false);
-        connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+        //connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
         try{
             unbindService(serviceConnection);
         }

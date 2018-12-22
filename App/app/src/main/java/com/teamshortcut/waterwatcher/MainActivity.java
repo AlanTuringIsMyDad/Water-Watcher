@@ -62,7 +62,6 @@ public class MainActivity extends AppCompatActivity {
 
     /*Bluetooth Variables*/
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
-    public static String TARGET_ADDRESS; //MAC address of the micro:bit
 
     @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
@@ -77,6 +76,9 @@ public class MainActivity extends AppCompatActivity {
             switch (msg.what){
                 case ConnectionService.GATT_CONNECTED: //Once a device has connected...
                     connectionService.discoverServices(); //...discover its services
+                    break;
+                case ConnectionService.GATT_DISCONNECTED:
+                    Toast.makeText(getApplicationContext(), "Device was disconnected.", Toast.LENGTH_LONG).show();
                     break;
                 case ConnectionService.GATT_SERVICES_DISCOVERED:
                     bundle = msg.getData();
@@ -119,14 +121,11 @@ public class MainActivity extends AppCompatActivity {
             connectionService = ((ConnectionService.LocalBinder) service).getService();
             connectionService.setActivityHandler(messageHandler); //Assigns messageHandler to handle all messages from this service
 
-            if (!connectionService.isConnected()){
-                if (connectionService.connect(TARGET_ADDRESS)){ //Try to connect to the BLE device chosen in the device selection activity
-                    Log.d("BLE Connected", "Successfully connected from MainActivity");
-                }
-                else{
-                    Log.e("BLE Failed to connect", "Failed to connect from MainActivity");
-                    Toast.makeText(getApplicationContext(), "Failed to connect", Toast.LENGTH_LONG).show();
-                }
+            if (connectionService.isConnected()){
+                //Sets up notifications for the Accelerometer Data characteristic
+                connectionService.setCharacteristicNotification(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, true);
+                //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
+                connectionService.setDescriptorValueAndWrite(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
             }
         }
 
@@ -149,19 +148,27 @@ public class MainActivity extends AppCompatActivity {
 
     //Accelerometer data is sent from the micro:bit as a byte array and needs to be converted to a signed integer
     private void processData(byte[] data) {
-        //BLE data must be split up into the x and y values
-        byte[] xBytes = new byte[2];
-        byte[] yBytes = new byte[2];
-        //Copies values from data into x/y Bytes. System.arraycopy() is used for performance+efficiency
-        System.arraycopy(data, 0, xBytes, 0, 2);
-        System.arraycopy(data, 2, yBytes, 0, 2);
-        //Data is in bytes in Little Endian form, and needs to be converted to an integer
-        short x = convertFromLittleEndianBytes(xBytes);
-        short y = convertFromLittleEndianBytes(yBytes);
-        int absoluteValue = (int) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
-        Log.d("Data", "Accelerometer Data received at time " + currentTime + ": x=" + x + " y=" + y + "absoluteValue= " + absoluteValue);
-        //displayAccelerometerValues(x, y);
-        updateGraph(x, y, absoluteValue);
+        try{
+            //BLE data must be split up into the x and y values
+            byte[] xBytes = new byte[2];
+            byte[] yBytes = new byte[2];
+            //Copies values from data into x/y Bytes. System.arraycopy() is used for performance+efficiency
+            System.arraycopy(data, 0, xBytes, 0, 2);
+            System.arraycopy(data, 2, yBytes, 0, 2);
+            //Data is in bytes in Little Endian form, and needs to be converted to an integer
+            short x = convertFromLittleEndianBytes(xBytes);
+            short y = convertFromLittleEndianBytes(yBytes);
+            int absoluteValue = (int) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+            Log.d("Data", "Accelerometer Data received at time " + currentTime + ": x=" + x + " y=" + y + "absoluteValue= " + absoluteValue);
+            //displayAccelerometerValues(x, y);
+            updateGraph(x, y, absoluteValue);
+        }
+        catch (Exception e){
+            //Likely a null or ArrayIndexOutOfBounds exception, caused by reading data before everything has been correctly initialised; can be safely ignored
+            Log.e("Fatal exception caught","Exception in processData");
+            e.printStackTrace();
+        }
+
     }
 
     //Updates the graph with a new set of data points
@@ -237,6 +244,7 @@ public class MainActivity extends AppCompatActivity {
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //Sets up toolbar and navigation bar
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -254,34 +262,37 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
                 menuItem.setChecked(true);
+                Intent intent;
 
                 switch (menuItem.getItemId()){
                     case R.id.device_select_drawer_item:
+                        //Device Select activity will be launched, so disconnect from the current device and stop the Connection Service
+                        connectionService.disconnect();
+                        Intent connectionServiceIntent = new Intent(MainActivity.this, ConnectionService.class);
+                        stopService(connectionServiceIntent);
 
+                        intent = new Intent(MainActivity.this, DeviceSelectActivity.class);
+                        startActivity(intent);
+                        finish();
                         break;
                     case R.id.graph_drawer_item:
-
+                        drawerLayout.closeDrawers();
                         break;
                     case R.id.settings_drawer_item:
-                        Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+                        intent = new Intent(MainActivity.this, SettingsActivity.class);
                         startActivity(intent);
+                        finish();
                         break;
                     case R.id.instructions_drawer_item:
-
+                        intent = new Intent(MainActivity.this, InstructionsActivity.class);
+                        startActivity(intent);
+                        finish();
                         break;
                 }
 
                 return true;
             }
         });
-
-        //Read intent data from previous activity
-        Intent intent = getIntent();
-        String name = intent.getStringExtra("DEVICENAME");
-        String address = intent.getStringExtra("DEVICEADDRESS"); //TODO: change key to constant
-        Log.i("Intent Extras", name+address);
-
-        TARGET_ADDRESS = address; //The MAC address of the device to connect to should be the chosen one passed from the device selection activity
 
         //Sets up graph that BLE data will be displayed on
         initialiseGraph();
