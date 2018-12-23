@@ -9,6 +9,8 @@
 
     <string-array name="periods">
         <item></item>
+        <item>2</item>
+        <item>5</item>
         <item>10</item>
         <item>20</item>
         <item>80</item>

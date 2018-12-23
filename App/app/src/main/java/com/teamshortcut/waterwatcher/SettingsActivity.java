@@ -176,8 +176,8 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         try{
-            //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms) but micro:bit memory can only handle 10ms minimum
-            boolean periodRegex = Pattern.matches("^(10|20|80|160|640)$", strPeriod);
+            //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms) but we disallow 1ms or micro:bit runs into memory problems and may crash
+            boolean periodRegex = Pattern.matches("^(2|5|10|20|80|160|640)$", strPeriod);
             if(!(periodRegex)){
                 message += "Please select a valid Accelerometer Period from the list of approved values.\n";
             }
@@ -332,12 +332,12 @@ public class SettingsActivity extends AppCompatActivity {
         });
 
         //Start the ConnectionService and BLE communications
-        Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
+        final Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
         //ComponentName connectionServiceComponent = startService(connectionServiceIntent);
         bindService(connectionServiceIntent, serviceConnection, BIND_AUTO_CREATE);
 
-        final Button button = (Button) findViewById(R.id.settings_button);
-        button.setOnClickListener(new View.OnClickListener() {
+        final Button sendButton = (Button) findViewById(R.id.settings_button);
+        sendButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 if (connectionService.isConnected()){
                     try {
@@ -353,6 +353,25 @@ public class SettingsActivity extends AppCompatActivity {
                         }
                     }
                     catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else{
+                    Snackbar.make(view, "No micro:bit connected!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    Log.e("BLE Connection State", "Attempted to send settings with no available connection");
+                }
+            }
+        });
+
+        final Button cancelButton = (Button) findViewById(R.id.cancel_button);
+        cancelButton.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View view) {
+                if (connectionService.isConnected()){
+                    try {
+                        String text = "CANCEL\\";
+                        byte[] ascii = text.getBytes("US-ASCII");
+                        connectionService.setCharacteristicValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_TX_CHARACTERISTIC_UUID, ascii);
+                    } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
                 }
