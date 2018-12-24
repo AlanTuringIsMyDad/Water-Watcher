@@ -25,6 +25,7 @@ The Android app makes use of the GraphView library by Jonas Gehring www.android-
 To interact with the micro:bit, use either or both of its two buttons, Button A (left) and Button B (right). ![Button A on the left of the micro:bit, Button B on the right](https://microbit.org/images/microbit-features-buttons.png)
 
 When the micro:bit is first booted, it will need to be calibrated. Assuming the micro:bit is strapped onto the tap, first press either button while the tap is off, and then again when the tap is running. This will calibrate the micro:bit to the tap in question, and this calibration will be saved in future. At this point, the micro:bit will begin checking the tap - using vibration levels measured from the accelerometer, and compared against the results from caibration - continually. While the tap is running, a timer will count down and an alert will trigger when that timer reaches zero. To turn off the alert or reset the timer at any point, simply switch off the tap.
+![The micro:bit's accelerometer measuring movement in the X, Y and Z axis](https://microbit.org/images/microbit-features-accelerometer.png)
 
 The micro:bit's program has five different "modes", used for different features. To navigate between these modes, the micro:bit's buttons are used.
 
