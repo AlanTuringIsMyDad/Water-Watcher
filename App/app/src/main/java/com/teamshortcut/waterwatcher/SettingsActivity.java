@@ -1,22 +1,11 @@
 package com.teamshortcut.waterwatcher;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -24,7 +13,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
-import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.v4.view.GravityCompat;
@@ -36,6 +24,8 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewTreeObserver;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
@@ -44,21 +34,51 @@ import android.widget.Toast;
 import com.alespero.expandablecardview.ExpandableCardView;
 
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
-
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class SettingsActivity extends AppCompatActivity {
-    //TODO: convert strings in .xml to the strings.xml file
     //TODO: fix app name resource not being discovered/displayed correctly
-    private DrawerLayout drawerLayout;
+
+    /*Views*/
+    private DrawerLayout drawerLayout; //Used for the navigation bar
+    //Input views
+    EditText timerEditText;
+    Spinner periodSpinner;
+    EditText samplesEditText;
+    ExpandableCardView card;
+    EditText xEditText;
+    EditText yEditText;
+    EditText thresholdEditText;
 
     /*Bluetooth Variables*/
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
+
+    /*Constants*/
+    private static String TIMER_KEY = "TIMER";
+    private static String PERIOD_KEY = "PERIOD";
+    private static String SAMPLES_KEY = "SAMPLES";
+    private static String X_KEY = "X";
+    private static String Y_KEY = "Y";
+    private static String THRESHOLD_KEY = "THRESHOLD";
+    private static String LOG_INVALID_INPUT = "Invalid input";
+
+    //Default values for each setting
+    private static HashMap<String, Integer> DEFAULT_VALUES = new HashMap<String, Integer>();{
+        {
+            DEFAULT_VALUES.put(TIMER_KEY, 30);
+            DEFAULT_VALUES.put(PERIOD_KEY, 160);
+            DEFAULT_VALUES.put(SAMPLES_KEY, 5);
+            DEFAULT_VALUES.put(X_KEY, 16);
+            DEFAULT_VALUES.put(Y_KEY, -16);
+            DEFAULT_VALUES.put(THRESHOLD_KEY, 64);
+        }
+    }
 
     @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
@@ -75,11 +95,11 @@ public class SettingsActivity extends AppCompatActivity {
                     connectionService.discoverServices(); //...discover its services
                     break;
                 case ConnectionService.GATT_DISCONNECTED:
-                    Toast.makeText(getApplicationContext(), "Device was disconnected.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), R.string.device_disconnected, Toast.LENGTH_LONG).show();
                     break;
                 case ConnectionService.GATT_SERVICES_DISCOVERED:
                     bundle = msg.getData();
-                    ArrayList<String> stringGattServices = bundle.getStringArrayList("GATT_SERVICES_LIST");
+                    ArrayList<String> stringGattServices = bundle.getStringArrayList(ConnectionService.GATT_SERVICES_LIST);
 
                     if (stringGattServices == null || !stringGattServices.contains(ConnectionService.UARTSERVICE_SERVICE_UUID )){ //Sometimes only generic services are initially found
                         //If the required service isn't found, refresh and retry service discovery
@@ -93,10 +113,6 @@ public class SettingsActivity extends AppCompatActivity {
                         connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
                     }
                     break;
-//                case ConnectionService.GATT_DESCRIPTOR_WRITTEN:
-//                    //Sends a simple byte array to tell the micro:bit to start streaming data
-//                    connectionService.setCharacteristicValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, new byte[]{1,1});
-//                    break;
                 case ConnectionService.NOTIFICATION_INDICATION_RECEIVED: //A notification or indication has occurred so some data has been transmitted to the app
                     bundle = msg.getData();
                     serviceUUID = bundle.getString(ConnectionService.BUNDLE_SERVICE_UUID);
@@ -104,20 +120,25 @@ public class SettingsActivity extends AppCompatActivity {
                     descriptorUUID = bundle.getString(ConnectionService.BUNDLE_DESCRIPTOR_UUID);
                     bytes = bundle.getByteArray(ConnectionService.BUNDLE_VALUE);
 
-                    Log.i("BLE Data Received", serviceUUID);
-                    Log.i("BLE Data Received", characteristicUUID);
-                    Log.i("BLE Data Received", String.valueOf(bytes));
-
                     if (characteristicUUID.equals(ConnectionService.UART_RX_CHARACTERISTIC_UUID)){ //If the received data is from the Accelerometer Data characteristic
-                       int length = bytes.length;
                        String ascii = "NULL";
                         try { //Convert from a bytearray to a string
                             ascii = new String(bytes,"US-ASCII");
-                        } catch (UnsupportedEncodingException e) {
+                        }
+                        catch (UnsupportedEncodingException e) {
                             e.printStackTrace();
                             Log.i("BLE Data Received", "ENCODING ERROR");
                         }
                         Log.i("BLE Data Received", ascii);
+                        if (ascii.equals("NULL")){ //If encoding failed
+                            Toast.makeText(getApplicationContext(), R.string.data_corrupt, Toast.LENGTH_LONG).show();
+                        }
+                        else{
+                            //Strip the EOM character (a "\") from the text
+                            ascii = ascii.substring(0, ascii.length() - 1);
+                            List<String> newSettings = Arrays.asList(ascii.split(",")); //Split into individual settings
+                            updateSettings(newSettings.get(0), newSettings.get(1), newSettings.get(2), newSettings.get(3), newSettings.get(4), newSettings.get(5));
+                        }
                     }
                     break;
             }
@@ -161,69 +182,69 @@ public class SettingsActivity extends AppCompatActivity {
         String message = "";
 
         if (!(isInteger(strTimer) && isInteger(strPeriod) && isInteger(strSamples) && isInteger(strX) && isInteger(strY) && isInteger(strThreshold))) {
-            message += "All inputs must be integers!\n";
+            message += getString(R.string.validation_integers);
         }
 
         //Try/catch statements are used to avoid type conversion errors, and to avoid duplicating the invalid type message that will be returned
         try{
             int timer = Integer.parseInt(strTimer);
             if (!(timer >= 0 && timer <= 1800)){
-                message += "Timer Length must be between 0 and 1800 seconds!\n";
+                message += getString(R.string.validation_timer);
             }
         }
         catch(NumberFormatException e){
-            Log.i("Invalid input", strTimer);
+            Log.i(LOG_INVALID_INPUT, strTimer);
         }
 
         try{
             //Valid periods for the micro:bit's accelerometer: 1, 2, 5, 10, 20, 80, 160 and 640 (ms) but we disallow 1ms or micro:bit runs into memory problems and may crash
             boolean periodRegex = Pattern.matches("^(2|5|10|20|80|160|640)$", strPeriod);
             if(!(periodRegex)){
-                message += "Please select a valid Accelerometer Period from the list of approved values.\n";
+                message += getString(R.string.validation_period);
             }
         }
         catch(Exception e){
-            Log.i("Invalid input", strPeriod);
+            Log.i(LOG_INVALID_INPUT, strPeriod);
         }
 
         try{
             int samples = Integer.parseInt(strSamples);
             if (!(samples >= 1 && samples <= 50)){
-                message += "Number of Accelerometer Samples must be between 1 and 50!\n";
+                message += getString(R.string.validation_samples);
             }
         }
         catch(NumberFormatException e){
-            Log.i("Invalid input", strSamples);
+            Log.i(LOG_INVALID_INPUT, strSamples);
         }
 
         try{
             int x = Integer.parseInt(strX);
             if (!(x >= -1024 && x <= 1024)){
-                message += "The value of X must be between -1024 and 1024.\n";
+                message += getString(R.string.validation_x);
             }
         }
         catch(NumberFormatException e){
-            Log.i("Invalid input", strX);
+            Log.i(LOG_INVALID_INPUT, strX);
         }
 
         try{
             int y = Integer.parseInt(strY);
             if (!(y >= -1024 && y <= 1024)){
-                message += "The value of Y must be between -1024 and 1024.\n";
+                message += getString(R.string.validation_y);
             }
         }
         catch(NumberFormatException e){
-            Log.i("Invalid input", strY);
+            Log.i(LOG_INVALID_INPUT, strY);
         }
 
         try{
             int threshold = Integer.parseInt(strThreshold);
             if (!(threshold >= 0 && threshold <= 1448)){
-                message += "The Threshold must be between 0 and 1448.\n";
+                message += getString(R.string.validation_threshold);
             }
         }
         catch(NumberFormatException e){
-            Log.i("Invalid input", strThreshold);
+            Log.i(LOG_INVALID_INPUT, strThreshold);
         }
 
         return message;
@@ -268,7 +289,7 @@ public class SettingsActivity extends AppCompatActivity {
             }
 
             //Constructs an Alert Dialog that displays the relevant validation error message(s)
-            builder.setTitle("Validation Error").setMessage(result).setNeutralButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+            builder.setTitle(getString(R.string.validation_error_dialog_title)).setMessage(result).setNeutralButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
                     //do nothing
                 }
@@ -276,6 +297,28 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         return settings;
+    }
+
+    //Updates the text in each EditText/Spinner, if parameters are null then it resets to their defaults
+    private void updateSettings(String newTimer, String newPeriod, String newSamples, String newX, String newY, String newThreshold){
+        if (newTimer == null || newPeriod == null || newSamples == null || newX == null || newY == null || newThreshold == null){
+            //Reset all input fields to the default value of the corresponding setting
+            timerEditText.setText(DEFAULT_VALUES.get(TIMER_KEY).toString());
+            periodSpinner.setSelection(((ArrayAdapter)periodSpinner.getAdapter()).getPosition(DEFAULT_VALUES.get(PERIOD_KEY).toString()));
+            samplesEditText.setText(DEFAULT_VALUES.get(SAMPLES_KEY).toString());
+            xEditText.setText(DEFAULT_VALUES.get(X_KEY).toString());
+            yEditText.setText(DEFAULT_VALUES.get(Y_KEY).toString());
+            thresholdEditText.setText(DEFAULT_VALUES.get(THRESHOLD_KEY).toString());
+        }
+        else{
+            //Update all input fields with the received settings
+            timerEditText.setText(newTimer);
+            periodSpinner.setSelection(((ArrayAdapter)periodSpinner.getAdapter()).getPosition(newPeriod));
+            samplesEditText.setText(newSamples);
+            xEditText.setText(newX);
+            yEditText.setText(newY);
+            thresholdEditText.setText(newThreshold);
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -295,6 +338,22 @@ public class SettingsActivity extends AppCompatActivity {
         MenuItem current = navigationView.getMenu().getItem(2);
         current.setChecked(true);
 
+        //Input views
+        timerEditText = (EditText) findViewById(R.id.timer_textbox);
+        periodSpinner = (Spinner) findViewById(R.id.period_spinner);
+        samplesEditText = (EditText) findViewById(R.id.samples_textbox);
+        card = findViewById(R.id.advanced);
+        xEditText = card.findViewById(R.id.x_textbox);
+        yEditText = card.findViewById(R.id.y_textbox);
+        thresholdEditText = card.findViewById(R.id.threshold_textbox);
+
+        //Set hints to the default values of each setting (ignore the Accelerometer Period as a Spinner has no hint attribute)
+        timerEditText.setHint(DEFAULT_VALUES.get(TIMER_KEY).toString());
+        samplesEditText.setHint(DEFAULT_VALUES.get(SAMPLES_KEY).toString());
+        xEditText.setHint(DEFAULT_VALUES.get(X_KEY).toString());
+        yEditText.setHint(DEFAULT_VALUES.get(Y_KEY).toString());
+        thresholdEditText.setHint(DEFAULT_VALUES.get(THRESHOLD_KEY).toString());
+
         navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
@@ -313,7 +372,7 @@ public class SettingsActivity extends AppCompatActivity {
                         finish();
                         break;
                     case R.id.graph_drawer_item:
-                        intent = new Intent(SettingsActivity.this, MainActivity.class);
+                        intent = new Intent(SettingsActivity.this, GraphingActivity.class);
                         startActivity(intent);
                         finish();
                         break;
@@ -348,7 +407,7 @@ public class SettingsActivity extends AppCompatActivity {
                             connectionService.setCharacteristicValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_TX_CHARACTERISTIC_UUID, ascii);
                         }
                         else{
-                            Snackbar.make(view, "Invalid settings!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                            Snackbar.make(view, R.string.invalid_settings, Snackbar.LENGTH_LONG).setAction("Action", null).show();
                             Log.e("Validation Error", "Invalid settings, error displayed in alert dialog");
                         }
                     }
@@ -357,7 +416,7 @@ public class SettingsActivity extends AppCompatActivity {
                     }
                 }
                 else{
-                    Snackbar.make(view, "No micro:bit connected!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    Snackbar.make(view, R.string.no_microbit_connected, Snackbar.LENGTH_LONG).setAction("Action", null).show();
                     Log.e("BLE Connection State", "Attempted to send settings with no available connection");
                 }
             }
@@ -376,11 +435,40 @@ public class SettingsActivity extends AppCompatActivity {
                     }
                 }
                 else{
-                    Snackbar.make(view, "No micro:bit connected!", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    Snackbar.make(view, R.string.no_microbit_connected, Snackbar.LENGTH_LONG).setAction("Action", null).show();
                     Log.e("BLE Connection State", "Attempted to send settings with no available connection");
                 }
             }
         });
+
+        final Button resetButton = (Button) findViewById(R.id.reset_button);
+        resetButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                updateSettings(null, null, null, null, null, null);
+            }
+        });
+
+        //Updates the height of all buttons so as to be uniform
+        //Run directly before onDraw()
+        ViewTreeObserver viewTreeObserver = resetButton.getViewTreeObserver();
+        if (viewTreeObserver.isAlive()) {
+            viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    resetButton.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    //Gets the largest height from all buttons, and sets height of all buttons to that
+                    ArrayList<Integer> buttonHeights = new ArrayList<Integer>();
+                    buttonHeights.add(sendButton.getMeasuredHeight());
+                    buttonHeights.add(cancelButton.getMeasuredHeight());
+                    buttonHeights.add(resetButton.getMeasuredHeight());
+                    Log.i("Heights", buttonHeights.toString());
+                    sendButton.setHeight(Collections.max(buttonHeights));
+                    cancelButton.setHeight(Collections.max(buttonHeights));
+                    resetButton.setHeight(Collections.max(buttonHeights));
+                }
+            });
+        }
     }
 
     @Override

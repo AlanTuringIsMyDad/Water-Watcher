@@ -40,7 +40,136 @@
 
             </android.support.design.widget.AppBarLayout>
 
-            <include layout="@layout/content_instructions" />
+            <android.support.v4.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                xmlns:tools="http://schemas.android.com/tools"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:layout_behavior="@string/appbar_scrolling_view_behavior"
+                tools:context=".InstructionsActivity"
+                tools:showIn="@layout/activity_instructions">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/app_name" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/introduction_instructions_text" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/connection_instructions_text" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/microbit_instructions_header" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/microbit_instructions_text_1" />
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:scaleType="centerInside"
+                        android:adjustViewBounds="true"
+                        android:src="@drawable/microbit_buttons"
+                        android:contentDescription="@string/microbit_button_image_content_description"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/microbit_instructions_text_2" />
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:scaleType="centerInside"
+                        android:adjustViewBounds="true"
+                        android:src="@drawable/microbit_accelerometer"
+                        android:contentDescription="@string/microbit_accelerometer_image_content_description" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/microbit_instructions_text_3" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/microbit_instructions_text_4_list" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/graphing_instructions_header" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/graphing_instructions_text" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/settings_instructions_header" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/settings_instructions_text_1" />
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:scaleType="centerInside"
+                        android:adjustViewBounds="true"
+                        android:src="@drawable/table"
+                        android:contentDescription="@string/validation_table_image_content_description"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/settings_instructions_text_2" />
+
+
+                    <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="@dimen/text_margin"
+                    android:text="@string/further_info_header" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/further_info_text"
+                        android:autoLink="web" />
+                </LinearLayout>
+            </android.support.v4.widget.NestedScrollView>
 
         </android.support.design.widget.CoordinatorLayout>
     </FrameLayout>

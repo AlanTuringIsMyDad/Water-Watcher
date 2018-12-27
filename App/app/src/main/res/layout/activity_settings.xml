@@ -50,14 +50,13 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Timer Length (Seconds)"
+                    android:text="@string/setting_timer_name"
                     android:padding="16dp"/>
 
                 <EditText
                     android:id="@+id/timer_textbox"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
-                    android:hint="30"
                     android:inputType="textMultiLine" />
             </LinearLayout>
 
@@ -69,7 +68,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Accelerometer Period (milliseconds)"
+                    android:text="@string/setting_period_name"
                     android:padding="16dp"/>
 
                 <Spinner
@@ -87,14 +86,13 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Number of Accelerometer Samples"
+                    android:text="@string/setting_samples_name"
                     android:padding="16dp"/>
 
                 <EditText
                     android:id="@+id/samples_textbox"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
-                    android:hint="5"
                     android:inputType="textMultiLine" />
 
             </LinearLayout>
@@ -111,22 +109,36 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:layout_marginTop="4dp">
 
                 <Button
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
                     android:id="@+id/settings_button"
                     android:padding="8dp"
-                    android:text="Send Settings over BLE"/>
+                    android:text="@string/settings_button_send"
+                    android:layout_weight="1"
+                    android:layout_gravity="center_vertical"/>
 
                 <Button
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/cancel_button"
                     android:padding="8dp"
-                    android:text="Cancel Updating Settings"/>
+                    android:text="@string/settings_button_cancel"
+                    android:layout_weight="1"
+                    android:layout_gravity="center_vertical"/>
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/reset_button"
+                    android:padding="8dp"
+                    android:text="@string/settings_button_reset"
+                    android:layout_weight="1"
+                    android:layout_gravity="center_vertical"/>
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>

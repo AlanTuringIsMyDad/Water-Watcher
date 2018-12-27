@@ -1,14 +1,126 @@
 <resources>
+    <!--App Wide Strings-->
     <string name="app_name">Water Watcher</string>
+    <string name="title_activity_device_select">Select Device</string>
+    <string name="title_activity_graph">Graphing</string>
+    <string name="title_activity_settings">Update Settings</string>
+    <string name="title_activity_instructions">Help</string>
+    <string name="device_connected">Device </string>
+    <string name="device_disconnected">Device was disconnected.</string>
+    <string name="failed_to_connect">Failed to connect.</string>
+    <string name="no_microbit_connected">No micro:bit connected!</string>
+
+
+    <!--Device Select Strings-->
     <string name="location_request">Location permission is required to make Bluetooth connections: please restart the app and grant location permission to continue.</string>
     <string name="old_version_location_message">This app requires location permissions to allow Bluetooth to function correctly. If the app is not working, please ensure location permissions have been granted.</string>
-    <string name="microbit_found">micro:bit found</string>
-    <string name="no_microbit_found">No corresponding micro:bit found</string>
-    <string name="title_activity_settings">SettingsActivity</string>
-    <string name="title_activity_device_select">Select Device</string>
+    <string name="bluetooth_enabled">"Please make sure Bluetooth is enabled and permissions are granted before scanning."</string>
+    <string name="must_pair_device">Device must be paired before connecting!</string>
+    <string name="bonded_prefix">"(BONDED) "</string>
+    <string name="microbit_name_start">BBC micro:bit</string>
+    <string name="unknown_device">UNKNOWN DEVICE</string>
+    <string name="scan">Scan</string>
+    <string name="stop_scanning">Stop Scanning</string>
+    <string name="start_scanning">Start Scanning</string>
+    <string name="device_select_help">
+        "To connect to the micro:bit, first make sure that it is running the correct program"
+        "(where passkey pairing is disabled), and that it is paired with your smartphone."
+        "Detailed instructions on this process can be found here:"
+        "https://makecode.microbit.org/reference/bluetooth/bluetooth-pairing\n\nOnce"
 
+        "the micro:bit is paired, make sure that it is in Connection Mode by pressing Button B"
+        "(the rightmost button) then simply scan and select your micro:bit (highlighted in green)"
+        "from the list below."
+    </string>
+
+
+
+    <!--Instructions Strings-->
+    <string name="introduction_instructions_text">
+        "In order to explain some features of the Water Watcher app and its associated micro:bit"
+        "program, there are some explanations and instructions provided on this page. To begin, use the navigation bar on the left."
+    </string>
+
+    <string name="connection_instructions_text">
+        "To reselect a device to connect to at any time, simply pick "Select Device" from the"
+        "navigation bar within the app, which will allow you to re-scan for available devices and"
+        "select the one you'd like to connect to. Please note that re-entering this screen will"
+        "cause the current device to be disconnected."
+    </string>
+
+    <string name="microbit_instructions_header">Using the micro:bit program</string>
+    <string name="microbit_instructions_text_1">
+        To interact with the micro:bit, use either or both of its two buttons, Button A (left) and Button B (right).
+    </string>
+    <string name="microbit_button_image_content_description">Button A on the left of the micro:bit, Button B on the right</string>
+    <string name="microbit_instructions_text_2">
+        "When the micro:bit is first booted, it will need to be calibrated. Assuming the micro:bit"
+        "is strapped onto the tap, first press either button while the tap is off, and then again"
+        "when the tap is running. This will calibrate the micro:bit to the tap in question, and"
+        "this calibration will be saved in future. At this point, the micro:bit will begin checking"
+        " the tap - using vibration levels measured from the accelerometer, and compared against"
+        "the results from caibration - continually. While the tap is running, a timer will count"
+        "down and an alert will trigger when that timer reaches zero. To turn off the alert or"
+        "reset the timer at any point, simply switch off the tap."
+    </string>
+    <string name="microbit_accelerometer_image_content_description">The micro:bit\'s accelerometer measuring movement in the X, Y and Z axis</string>
+    <string name="microbit_instructions_text_3">
+        "The micro:bit's program has five different "modes", used for different features. To"
+        "navigate between these modes, the micro:bit's buttons are used.\n\n"
+    </string>
+    <string name="microbit_instructions_text_4_list">
+        <li>1. Calibration Mode: this is initiated the first time the micro:bit is booted. The micro:bit can be recalibrated by pressing Button A.</li>\n
+        <li>2. Vibration Checking Mode: the main part of the program, where the tap is continually checked, and the timer and alert is handled.</li>\n
+        <li>3. Connection Mode: this is where the micro:bit can connect to the smartphone app. Press Button B to enter this mode, at which point the micro:bit will wait for a connection to be initiated. Simply press Button B again to manually exit it if no connection is made.</li>\n
+        <li>4. Settings Mode: once the micro:bit is connected to the smartphone, pressing Button B again will enter Settings Mode. Here, the app can update various micro:bit settings over Bluetooth, such as the length of the timer.</li>\n
+        <li>5. Reset Mode: pressing both Button A and Button B simultaneously will enter the micro:bit into Reset Mode. Press both buttons again to reset the program completely, removing all stored values and reverting it to its state as if it had been booted for the first time. Press either button individually to cancel and exit this mode.</li>
+    </string> <!--TODO: dimensions/padding should indent this-->
+
+    <string name="graphing_instructions_header">Graphing</string>
+    <string name="graphing_instructions_text">
+        "Once the micro:bit is connected, it will transmit the values measured from its"
+        "accelerometer to the app, which is automatically graphed in real-time, and can be"
+        "exported."
+    </string>
+
+    <string name="settings_instructions_header">Settings</string>
+    <string name="settings_instructions_text_1">
+        "The app can update various micro:bit settings over Bluetooth. To do this, first make sure"
+        "the micro:bit is connected and in Settings Mode. To send the current settings to the app"
+        "to be displayed, press Button A while in this mode. To update the settings on the"
+        "micro:bit, enter the new values in the app and press the button to send these settings"
+        "over BLE. To exit this mode on the micro:bit, either update the settings and the mode will"
+        "be exited automatically, or press the button in the app to cancel updating settings. You"
+        "can also revert to the default values in the app by pressing the button to reset values to"
+        "their defaults. This will not revert the settings on the micro:bit until those values are"
+        "sent over Bluetooth.\n\nAll input is validated to make sure that the values are"
+        "appropriate for all settings. The settings and their validation is as follows:"
+    </string>
+    <string name="validation_table_image_content_description">A table showing the names, decriptions and validations of each updatable setting</string>
+    <string name="settings_instructions_text_2">
+        "The micro:bit measures values between -1024 and 1024 milli-g on each axis. The threshold"
+        "is the absolute value of both axes, and √1024² + 1024² ≈ 1448. The micro:bit's accelerometer will only accept certain periods; although it will also accept a period of 1ms, due to the polling frequency that would cause it will result in the Water Watcher program crashing due to memory issues. All other validation is"
+        "done to ensure that all values are sensible in context."
+    </string>
+
+    <string name="further_info_header">Further Information</string>
+    <string name="further_info_text">
+        "This app and the accompanying micro:bit program was made by Aaron Cuthbertson. (https://twitter.com/teamshortcut)"
+        "For further information, you can find the GitHub repository for this project among those at: https://github.com/teamshortcut"
+    </string>
+
+
+
+    <!--Graphing Activity Strings-->
+    <string name="graph_plot_title_x">X</string>
+    <string name="graph_plot_title_y">Y</string>
+    <string name="graph_plot_title_absolute_value">Absolute Value</string>
+
+
+
+    <!--Settings Activity String-->
     <string-array name="periods">
-        <item></item>
+        <item />
         <item>2</item>
         <item>5</item>
         <item>10</item>
@@ -17,95 +129,26 @@
         <item>160</item>
         <item>640</item>
     </string-array>
-    <string name="title_activity_instructions">InstructionsActivity</string>
-    <string name="large_text">
-        "Material is the metaphor.\n\n"
 
-        "A material metaphor is the unifying theory of a rationalized space and a system of motion."
-        "The material is grounded in tactile reality, inspired by the study of paper and ink, yet "
-        "technologically advanced and open to imagination and magic.\n"
-        "Surfaces and edges of the material provide visual cues that are grounded in reality. The "
-        "use of familiar tactile attributes helps users quickly understand affordances. Yet the "
-        "flexibility of the material creates new affordances that supercede those in the physical "
-        "world, without breaking the rules of physics.\n"
-        "The fundamentals of light, surface, and movement are key to conveying how objects move, "
-        "interact, and exist in space and in relation to each other. Realistic lighting shows "
-        "seams, divides space, and indicates moving parts.\n\n"
+    <string name="setting_timer_name">Timer Length (Seconds)</string>
+    <string name="setting_period_name">Accelerometer Period (milliseconds)</string>
+    <string name="setting_samples_name">Number of Accelerometer Samples</string>
+    <string name="setting_x_name">X</string>
+    <string name="setting_y_name">Y</string>
+    <string name="setting_threshold_name">Threshold</string>
 
-        "Bold, graphic, intentional.\n\n"
+    <string name="settings_button_send">Send Settings over BLE</string>
+    <string name="settings_button_cancel">Cancel Updating Settings</string>
+    <string name="settings_button_reset">Reset Settings Input to Default</string>
 
-        "The foundational elements of print based design typography, grids, space, scale, color, "
-        "and use of imagery guide visual treatments. These elements do far more than please the "
-        "eye. They create hierarchy, meaning, and focus. Deliberate color choices, edge to edge "
-        "imagery, large scale typography, and intentional white space create a bold and graphic "
-        "interface that immerse the user in the experience.\n"
-        "An emphasis on user actions makes core functionality immediately apparent and provides "
-        "waypoints for the user.\n\n"
-
-        "Motion provides meaning.\n\n"
-
-        "Motion respects and reinforces the user as the prime mover. Primary user actions are "
-        "inflection points that initiate motion, transforming the whole design.\n"
-        "All action takes place in a single environment. Objects are presented to the user without "
-        "breaking the continuity of experience even as they transform and reorganize.\n"
-        "Motion is meaningful and appropriate, serving to focus attention and maintain continuity. "
-        "Feedback is subtle yet clear. Transitions are efﬁcient yet coherent.\n\n"
-
-        "3D world.\n\n"
-
-        "The material environment is a 3D space, which means all objects have x, y, and z "
-        "dimensions. The z-axis is perpendicularly aligned to the plane of the display, with the "
-        "positive z-axis extending towards the viewer. Every sheet of material occupies a single "
-        "position along the z-axis and has a standard 1dp thickness.\n"
-        "On the web, the z-axis is used for layering and not for perspective. The 3D world is "
-        "emulated by manipulating the y-axis.\n\n"
-
-        "Light and shadow.\n\n"
-
-        "Within the material environment, virtual lights illuminate the scene. Key lights create "
-        "directional shadows, while ambient light creates soft shadows from all angles.\n"
-        "Shadows in the material environment are cast by these two light sources. In Android "
-        "development, shadows occur when light sources are blocked by sheets of material at "
-        "various positions along the z-axis. On the web, shadows are depicted by manipulating the "
-        "y-axis only. The following example shows the card with a height of 6dp.\n\n"
-
-        "Resting elevation.\n\n"
-
-        "All material objects, regardless of size, have a resting elevation, or default elevation "
-        "that does not change. If an object changes elevation, it should return to its resting "
-        "elevation as soon as possible.\n\n"
-
-        "Component elevations.\n\n"
-
-        "The resting elevation for a component type is consistent across apps (e.g., FAB elevation "
-        "does not vary from 6dp in one app to 16dp in another app).\n"
-        "Components may have different resting elevations across platforms, depending on the depth "
-        "of the environment (e.g., TV has a greater depth than mobile or desktop).\n\n"
-
-        "Responsive elevation and dynamic elevation offsets.\n\n"
-
-        "Some component types have responsive elevation, meaning they change elevation in response "
-        "to user input (e.g., normal, focused, and pressed) or system events. These elevation "
-        "changes are consistently implemented using dynamic elevation offsets.\n"
-        "Dynamic elevation offsets are the goal elevation that a component moves towards, relative "
-        "to the component’s resting state. They ensure that elevation changes are consistent "
-        "across actions and component types. For example, all components that lift on press have "
-        "the same elevation change relative to their resting elevation.\n"
-        "Once the input event is completed or cancelled, the component will return to its resting "
-        "elevation.\n\n"
-
-        "Avoiding elevation interference.\n\n"
-
-        "Components with responsive elevations may encounter other components as they move between "
-        "their resting elevations and dynamic elevation offsets. Because material cannot pass "
-        "through other material, components avoid interfering with one another any number of ways, "
-        "whether on a per component basis or using the entire app layout.\n"
-        "On a component level, components can move or be removed before they cause interference. "
-        "For example, a floating action button (FAB) can disappear or move off screen before a "
-        "user picks up a card, or it can move if a snackbar appears.\n"
-        "On the layout level, design your app layout to minimize opportunities for interference. "
-        "For example, position the FAB to one side of stream of a cards so the FAB won’t interfere "
-        "when a user tries to pick up one of cards.\n\n"
-    </string>
-    <string name="action_settings">Settings</string>
+    <string name="validation_error_dialog_title">Validation Error</string>
+    <string name="validation_integers">All inputs must be integers!\n</string>
+    <string name="validation_timer">Timer Length must be between 0 and 1800 seconds!\n</string>
+    <string name="validation_period">Please select a valid Accelerometer Period from the list of approved values.\n</string>
+    <string name="validation_samples">Number of Accelerometer Samples must be between 1 and 50!\n</string>
+    <string name="validation_x">The value of X must be between -1024 and 1024.\n</string>
+    <string name="validation_y">The value of Y must be between -1024 and 1024.\n</string>
+    <string name="validation_threshold">The Threshold must be between 0 and 1448.\n</string>
+    <string name="invalid_settings">Invalid settings!</string>
+    <string name="data_corrupt">Received data was corrupted, please try again.</string>
 </resources>

@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -53,7 +54,7 @@ public class DeviceSelectActivity extends AppCompatActivity {
                     enabled = true;
                 } else {
                     //Permission was denied
-                    Toast.makeText(getApplicationContext(), R.string.location_request, Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), getString(R.string.location_request), Toast.LENGTH_LONG).show();
                     enabled = false;
                 }
             }
@@ -68,7 +69,7 @@ public class DeviceSelectActivity extends AppCompatActivity {
                 return;
             }
             deviceListAdapter.addDevice(result.getDevice()); //Add new device to the list of available BLE devices
-            Log.i("BLE DEVICE", String.valueOf(result.getDevice()));
+            Log.i(ConnectionService.LOG_BLE_DEVICE, String.valueOf(result.getDevice()));
             deviceListAdapter.notifyDataSetChanged(); //Refreshes the ListAdapter
         }
     };
@@ -80,7 +81,7 @@ public class DeviceSelectActivity extends AppCompatActivity {
             scanning = true;
         }
         else{
-            Toast.makeText(getApplicationContext(), "Please make sure Bluetooth is enabled and permissions are granted before scanning.", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), R.string.bluetooth_enabled, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -88,6 +89,8 @@ public class DeviceSelectActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_device_select);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
 
         deviceListAdapter = new BLEListAdapter(){
             @Override
@@ -108,16 +111,16 @@ public class DeviceSelectActivity extends AppCompatActivity {
                 BluetoothDevice bluetoothDevice = this.getDevice(position); //gets the corresponding device
                 String deviceName = bluetoothDevice.getName();
                 if (bluetoothDevice.getBondState() == BluetoothDevice.BOND_BONDED){
-                    deviceName = "(BONDED) " + deviceName; //Indicates if the device is bonded/paired with the smartphone already
+                    deviceName = getString(R.string.bonded_prefix) + deviceName; //Indicates if the device is bonded/paired with the smartphone already
                 }
                 if(deviceName != null && deviceName.length() > 0){ //If the discovered name is not null or empty
                     viewHolder.name.setText(deviceName);
-                    if (deviceName.startsWith("BBC micro:bit") || deviceName.startsWith("(BONDED) BBC micro:bit")){
+                    if (deviceName.startsWith(getString(R.string.microbit_name_start)) || deviceName.startsWith(getString(R.string.bonded_prefix) + getString(R.string.microbit_name_start))){
                         viewHolder.name.setBackgroundColor(Color.GREEN); //Highlight in green devices that are likely to be micro:bits
                     }
                 }
                 else{
-                    viewHolder.name.setText("UNKNOWN DEVICE");
+                    viewHolder.name.setText(getString(R.string.unknown_device));
                 }
                 viewHolder.address.setText(bluetoothDevice.getAddress());
 
@@ -151,12 +154,12 @@ public class DeviceSelectActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (!scanning){
                     startScanning();
-                    button.setText("Stop Scanning");
+                    button.setText(getString(R.string.stop_scanning));
                 }
                 else{
                     scanner.stopScan(scanCallback);
                     scanning = false;
-                    button.setText("Start Scanning");
+                    button.setText(getString(R.string.start_scanning));
                 }
             }
         });
@@ -166,17 +169,17 @@ public class DeviceSelectActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 BluetoothDevice targetDevice = deviceListAdapter.getDevice(position); //gets the selected BluetoothDevice
                 if (targetDevice.getBondState() == BluetoothDevice.BOND_NONE){ //cannot connect to a device that has not been bonded/paired
-                    Toast.makeText(getApplicationContext(), "Device must be paired before connecting!", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), R.string.must_pair_device, Toast.LENGTH_LONG).show();
                     return; //exit
                 }
                 if (scanning){ //Stop the current scan, if one is occurring
                     scanner.stopScan(scanCallback);
                     scanning = false;
-                    button.setText("Start Scanning");
+                    button.setText(getString(R.string.start_scanning));
                 }
-                //Launch MainActivity, passing the name and address of the selected BluetoothDevice
+                //Launch GraphingActivity, passing the name and address of the selected BluetoothDevice
                 Intent intent = new Intent(DeviceSelectActivity.this, InstructionsActivity.class);
-                intent.putExtra("DEVICEADDRESS", targetDevice.getAddress());
+                intent.putExtra(ConnectionService.INTENT_DEVICE_ADDRESS, targetDevice.getAddress());
                 startActivity(intent);
                 finish(); //Destroys this activity
             }

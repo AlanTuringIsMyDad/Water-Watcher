@@ -27,8 +27,6 @@ import java.util.UUID;
 
 import static java.util.UUID.fromString;
 
-//TODO: improve debug messages; standardise .d vs .i (.i should be just received data maybe) and tags (eg. with constants) (across all files)
-
 public class ConnectionService extends Service {
     //STATUS ID CONSTANTS
     public static final int GATT_CONNECTED = 1;
@@ -42,6 +40,7 @@ public class ConnectionService extends Service {
     public static final String BUNDLE_CHARACTERISTIC_UUID = "CHARACTERISTIC UUID";
     public static final String BUNDLE_SERVICE_UUID = "SERVICE UUID";
     public static final String BUNDLE_VALUE = "VALUE";
+    public static final String GATT_SERVICES_LIST = "GATTSERVICESLIST";
 
     //BLUETOOTH UUID CONSTANTS
     //Each Service has Characteristics, which are used to read/write data
@@ -54,6 +53,13 @@ public class ConnectionService extends Service {
     public static String UART_RX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; //Reads from the micro:bit
     public static String UART_TX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; //Writes to the micro:bit
     public static String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
+
+    //ADDITIONAL CONSTANTS
+    public static String LOG_BLE_DEVICE = "BLE DEVICE";
+    public static String LOG_GATT_CALLBACK = "Gatt Callback";
+    public static String LOG_BLE_SERVICES = "BLE Services";
+    public static String LOG_CONNECTION_SERVICE = "ConnectionService";
+    public static String INTENT_DEVICE_ADDRESS = "DEVICEADDRESS";
 
     //Bluetooth Objects
     private BluetoothAdapter bluetoothAdapter;
@@ -96,17 +102,17 @@ public class ConnectionService extends Service {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             setTimestamp();
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.d("Gatt Callback", "onConnectionStateChange: CONNECTED");
+                Log.d(LOG_GATT_CALLBACK, "onConnectionStateChange: CONNECTED");
                 Message msg = Message.obtain(activityHandler, GATT_CONNECTED);
                 msg.sendToTarget(); //Notify the activity a device has connected
                 connected = true;
             }
             else if (newState == BluetoothProfile.STATE_DISCONNECTED){
-                Log.d("Gatt Callback", "onConnectionStateChange: DISCONNECTED");
+                Log.d(LOG_GATT_CALLBACK, "onConnectionStateChange: DISCONNECTED");
                 Message msg = Message.obtain(activityHandler, GATT_DISCONNECTED);
                 msg.sendToTarget(); //Notify the activity a device has disconnected
                 if (bluetoothGatt != null){
-                    Log.d("Gatt Callback", "Closing connection from BluetoothGatt object");
+                    Log.d(LOG_GATT_CALLBACK, "Closing connection from BluetoothGatt object");
                     bluetoothGatt.close(); //Close the connection and nullify bluetoothGatt so that a new connection can later be started
                     bluetoothGatt = null;
                 }
@@ -116,7 +122,7 @@ public class ConnectionService extends Service {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            Log.d("Gatt Callback", "onServicesDiscovered");
+            Log.d(LOG_GATT_CALLBACK, "onServicesDiscovered");
             servicesDiscovered = true;
 
             ArrayList<String> stringGattServices = new ArrayList<String>();
@@ -125,14 +131,14 @@ public class ConnectionService extends Service {
                 List<BluetoothGattService> gattServices = gatt.getServices();
                 for (BluetoothGattService gattService : gattServices){
                     stringGattServices.add(gattService.getUuid().toString());
-                    Log.i("Services Discovered", gattService.getUuid().toString());
+                    Log.i(LOG_BLE_SERVICES, "Service Discovered: " + gattService.getUuid().toString());
                 }
             }
 
             setTimestamp();
             //Sends the list of discovered services back to the activity
             Bundle bundle = new Bundle();
-            bundle.putStringArrayList("GATT_SERVICES_LIST", stringGattServices);
+            bundle.putStringArrayList(GATT_SERVICES_LIST, stringGattServices);
             Message msg = Message.obtain(activityHandler, GATT_SERVICES_DISCOVERED);
             msg.setData(bundle);
             msg.sendToTarget();
@@ -140,7 +146,7 @@ public class ConnectionService extends Service {
 
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            Log.d("Gatt Callback", "onDescriptorWrite");
+            Log.d(LOG_GATT_CALLBACK, "onDescriptorWrite");
             setTimestamp();
             if (status == BluetoothGatt.GATT_SUCCESS){
                 //Sends the UUIDs of the service, characteristic and descriptor, and the stored value for the descriptor, to the activity
@@ -154,13 +160,13 @@ public class ConnectionService extends Service {
                 msg.sendToTarget();
             }
             else{
-                Log.e("Gatt Callback", "onDescriptorWrite: ERROR. Status: "+status);
+                Log.e(LOG_GATT_CALLBACK, "onDescriptorWrite: ERROR. Status: "+status);
             }
         }
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) { //Data has been received from a characteristic
-            Log.d("Gatt Callback", "onCharacteristicChanged");
+            Log.d(LOG_GATT_CALLBACK, "onCharacteristicChanged");
             setTimestamp();
             //Sends the UUIDs of the service and characteristic, and the received data, to the activity
             Bundle bundle = new Bundle();
@@ -197,7 +203,7 @@ public class ConnectionService extends Service {
 
         @Override
         public void run() {
-            Log.d("ConnectionService", "KeepAlive thread starting");
+            Log.d(LOG_CONNECTION_SERVICE, "KeepAlive thread starting");
             running = true;
             try {
                 Thread.sleep((long) (Math.random() * 1000)); //Sleep for random number of milliseconds
@@ -215,21 +221,21 @@ public class ConnectionService extends Service {
                 //If the time since last BLE activity is more than the specified timeout in milliseconds and the device is still connected, interact with the connection to keep it alive
                 if (running && ((System.currentTimeMillis() - timestamp) > sleepTime)){
                     if (connected && servicesDiscovered){ //If device is still connected and its services have been discovered
-                        Log.d("ConnectionService", "Keeping connection alive by reading device name");
+                        Log.d(LOG_CONNECTION_SERVICE, "Keeping connection alive by reading device name");
                         try{
                             bluetoothGatt.readCharacteristic(bluetoothGatt.getService(fromString(GENERICACCESS_SERVICE_UUID)).getCharacteristic(fromString(DEVICENAME_CHARACTERISTIC_UUID)));
                             setTimestamp();
                         }
                         catch (NullPointerException e){
-                            Log.e("ConnectionService", "Read Generic Access service and Device Name characteristic failed due to null pointer exception, service may not be enabled on the micro:bit");
+                            Log.e(LOG_CONNECTION_SERVICE, "Read Generic Access service and Device Name characteristic failed due to null pointer exception, service may not be enabled on the micro:bit");
                         }
                     }
                     else{
-                        Log.d("ConnectionService", "Time Exceeded but not connected or services not yet discovered");
+                        Log.d(LOG_CONNECTION_SERVICE, "Time Exceeded but not connected or services not yet discovered");
                     }
                 }
             }
-            Log.d("ConnectionService", "KeepAlive thread exiting");
+            Log.d(LOG_CONNECTION_SERVICE, "KeepAlive thread exiting");
         }
     }
 
@@ -285,30 +291,30 @@ public class ConnectionService extends Service {
 
     public boolean connect(final String address){
         if (bluetoothAdapter == null || address == null){
-            Log.e("ConnectionService", "ERROR: null BluetoothAdapter");
+            Log.e(LOG_CONNECTION_SERVICE, "ERROR: null BluetoothAdapter");
             return false;
         }
 
         device = bluetoothAdapter.getRemoteDevice(address); //Gets the device with the specified MAC address
         if (device == null){
-            Log.e("ConnectionService", "ERROR: null BluetoothDevice");
+            Log.e(LOG_CONNECTION_SERVICE, "ERROR: null BluetoothDevice");
             return false;
         }
 
         //Starts a connection to the device with the GattCallback defined above
         bluetoothGatt = device.connectGatt(this, false, gattCallback);
-        Log.d("ConnectionService", "Successfully connected");
+        Log.d(LOG_CONNECTION_SERVICE, "Successfully connected");
         return true;
     }
 
     public void disconnect() {
         if (bluetoothAdapter == null || bluetoothGatt == null) {
-            Log.e("ConnectionService", "Tried to disconnect with null BluetoothAdapter or BluetoothGatt");
+            Log.e(LOG_CONNECTION_SERVICE, "Tried to disconnect with null BluetoothAdapter or BluetoothGatt");
             return;
         }
         keepAlive.stop(); //Stop keeping the connection alive, as it will be closed
         if (bluetoothGatt != null){
-            Log.d("ConnectionService", "DISCONNECTING");
+            Log.d(LOG_CONNECTION_SERVICE, "DISCONNECTING");
             bluetoothGatt.disconnect();
             connected = false;
         }
@@ -326,15 +332,15 @@ public class ConnectionService extends Service {
 
         //Check there are no null variables
         if (bluetoothGatt == null){
-            Log.e("ConnectionService", "Null bluetoothGatt in setCharacteristicNotification");
+            Log.e(LOG_CONNECTION_SERVICE, "Null bluetoothGatt in setCharacteristicNotification");
             return false;
         }
         if (bluetoothGatt.getService(serviceUUID) == null){
-            Log.e("ConnectionService", "Null service in setCharacteristicNotification");
+            Log.e(LOG_CONNECTION_SERVICE, "Null service in setCharacteristicNotification");
             return false;
         }
         if (bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID) == null) {
-            Log.e("ConnectionService", "Null characteristic in setCharacteristicNotification");
+            Log.e(LOG_CONNECTION_SERVICE, "Null characteristic in setCharacteristicNotification");
             return false;
         }
 
@@ -352,19 +358,19 @@ public class ConnectionService extends Service {
 
         //Check there are no null variables
         if (bluetoothGatt == null){
-            Log.e("ConnectionService", "Null bluetoothGatt in setDescriptorValue");
+            Log.e(LOG_CONNECTION_SERVICE, "Null bluetoothGatt in setDescriptorValue");
             return false;
         }
         if (bluetoothGatt.getService(serviceUUID) == null){
-            Log.e("ConnectionService", "Null service in setDescriptorValue");
+            Log.e(LOG_CONNECTION_SERVICE, "Null service in setDescriptorValue");
             return false;
         }
         if (bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID) == null) {
-            Log.e("ConnectionService", "Null characteristic in setDescriptorValue");
+            Log.e(LOG_CONNECTION_SERVICE, "Null characteristic in setDescriptorValue");
             return false;
         }
         if (bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID).getDescriptor(descriptorUUID) == null) {
-            Log.e("ConnectionService", "Null descriptor in setDescriptorValue");
+            Log.e(LOG_CONNECTION_SERVICE, "Null descriptor in setDescriptorValue");
             return false;
         }
 
@@ -382,15 +388,15 @@ public class ConnectionService extends Service {
 
         //Check there are no null variables
         if (bluetoothGatt == null){
-            Log.e("ConnectionService", "Null bluetoothGatt in writeCharacteristic");
+            Log.e(LOG_CONNECTION_SERVICE, "Null bluetoothGatt in writeCharacteristic");
             return false;
         }
         if (bluetoothGatt.getService(serviceUUID) == null){
-            Log.e("ConnectionService", "Null service in writeCharacteristic");
+            Log.e(LOG_CONNECTION_SERVICE, "Null service in writeCharacteristic");
             return false;
         }
         if (bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID) == null) {
-            Log.e("ConnectionService", "Null characteristic in writeCharacteristic");
+            Log.e(LOG_CONNECTION_SERVICE, "Null characteristic in writeCharacteristic");
             return false;
         }
 
@@ -420,7 +426,7 @@ public class ConnectionService extends Service {
             }
         }
         catch (Exception localException){
-            Log.e("BLE Services", "An exception occurred while refreshing the device");
+            Log.e(LOG_BLE_SERVICES, "An exception occurred while refreshing the device");
         }
         return false;
     }

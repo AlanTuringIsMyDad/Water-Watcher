@@ -34,13 +34,12 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 //TODO: http://www.android-graphview.org/zooming-and-scrolling/
-//Add graph.getViewport().setScrollable(true); but only on disconnect? Otherwise fatal exception occurs
-//Check for BLE object if null? If not null then disable scroll?
+//TODO: Add graph.getViewport().setScrollable(true); but only on disconnect? Otherwise fatal exception occurs
+//TODO: Check for BLE object if null? If not null then disable scroll?
 //TODO: label x axis as time in seconds and y axis as g-force(?)
-//TODO: rename MainActivity, refactor in debug messages and comments too
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
-public class MainActivity extends AppCompatActivity {
+public class GraphingActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
 
     /*Graph Variables*/
@@ -78,11 +77,11 @@ public class MainActivity extends AppCompatActivity {
                     connectionService.discoverServices(); //...discover its services
                     break;
                 case ConnectionService.GATT_DISCONNECTED:
-                    Toast.makeText(getApplicationContext(), "Device was disconnected.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), R.string.device_disconnected, Toast.LENGTH_LONG).show();
                     break;
                 case ConnectionService.GATT_SERVICES_DISCOVERED:
                     bundle = msg.getData();
-                    ArrayList<String> stringGattServices = bundle.getStringArrayList("GATT_SERVICES_LIST");
+                    ArrayList<String> stringGattServices = bundle.getStringArrayList(ConnectionService.GATT_SERVICES_LIST);
 
                     if (stringGattServices == null || !stringGattServices.contains(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID )){ //Sometimes only generic services are initially found
                         //If the required service isn't found, refresh and retry service discovery
@@ -193,9 +192,9 @@ public class MainActivity extends AppCompatActivity {
         absoluteSeries = new LineGraphSeries<>();
 
         //Sets the titles of each graph (used in the legend)
-        xSeries.setTitle("X");
-        ySeries.setTitle("Y");
-        absoluteSeries.setTitle("Absolute Value");
+        xSeries.setTitle(getString(R.string.graph_plot_title_x));
+        ySeries.setTitle(getString(R.string.graph_plot_title_y));
+        absoluteSeries.setTitle(getString(R.string.graph_plot_title_absolute_value));
 
         //Sets the colour of each series' lines
         xSeries.setColor(Color.BLUE);
@@ -246,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         //Sets up toolbar and navigation bar
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_graphing);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         ActionBar actionbar = getSupportActionBar();
@@ -268,10 +267,10 @@ public class MainActivity extends AppCompatActivity {
                     case R.id.device_select_drawer_item:
                         //Device Select activity will be launched, so disconnect from the current device and stop the Connection Service
                         connectionService.disconnect();
-                        Intent connectionServiceIntent = new Intent(MainActivity.this, ConnectionService.class);
+                        Intent connectionServiceIntent = new Intent(GraphingActivity.this, ConnectionService.class);
                         stopService(connectionServiceIntent);
 
-                        intent = new Intent(MainActivity.this, DeviceSelectActivity.class);
+                        intent = new Intent(GraphingActivity.this, DeviceSelectActivity.class);
                         startActivity(intent);
                         finish();
                         break;
@@ -279,12 +278,12 @@ public class MainActivity extends AppCompatActivity {
                         drawerLayout.closeDrawers();
                         break;
                     case R.id.settings_drawer_item:
-                        intent = new Intent(MainActivity.this, SettingsActivity.class);
+                        intent = new Intent(GraphingActivity.this, SettingsActivity.class);
                         startActivity(intent);
                         finish();
                         break;
                     case R.id.instructions_drawer_item:
-                        intent = new Intent(MainActivity.this, InstructionsActivity.class);
+                        intent = new Intent(GraphingActivity.this, InstructionsActivity.class);
                         startActivity(intent);
                         finish();
                         break;

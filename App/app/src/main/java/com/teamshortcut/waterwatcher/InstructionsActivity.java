@@ -1,7 +1,6 @@
 package com.teamshortcut.waterwatcher;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -10,9 +9,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.support.annotation.NonNull;
-import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
-import android.support.design.widget.Snackbar;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBar;
@@ -20,7 +17,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -47,11 +43,11 @@ public class InstructionsActivity extends AppCompatActivity {
                     connectionService.discoverServices(); //...discover its services
                     break;
                 case ConnectionService.GATT_DISCONNECTED:
-                    Toast.makeText(getApplicationContext(), "Device was disconnected.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), R.string.device_disconnected, Toast.LENGTH_LONG).show();
                     break;
                 case ConnectionService.GATT_SERVICES_DISCOVERED:
                     bundle = msg.getData();
-                    ArrayList<String> stringGattServices = bundle.getStringArrayList("GATT_SERVICES_LIST");
+                    ArrayList<String> stringGattServices = bundle.getStringArrayList(ConnectionService.GATT_SERVICES_LIST);
 
                     //Sometimes only generic services are initially found
                     if (stringGattServices == null || !stringGattServices.contains(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID) || !stringGattServices.contains(ConnectionService.UARTSERVICE_SERVICE_UUID)){
@@ -76,7 +72,7 @@ public class InstructionsActivity extends AppCompatActivity {
                 }
                 else{
                     Log.e("BLE Failed to connect", "Failed to connect from InstructionsActivity");
-                    Toast.makeText(getApplicationContext(), "Failed to connect", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), R.string.failed_to_connect, Toast.LENGTH_LONG).show();
                 }
             }
         }
@@ -121,7 +117,7 @@ public class InstructionsActivity extends AppCompatActivity {
                         finish();
                         break;
                     case R.id.graph_drawer_item:
-                        intent = new Intent(InstructionsActivity.this, MainActivity.class);
+                        intent = new Intent(InstructionsActivity.this, GraphingActivity.class);
                         startActivity(intent);
                         finish();
                         break;
@@ -141,7 +137,7 @@ public class InstructionsActivity extends AppCompatActivity {
 
         //Read intent data from previous activity
         Intent intent = getIntent();
-        String address = intent.getStringExtra("DEVICEADDRESS"); //TODO: change key to constant
+        String address = intent.getStringExtra(ConnectionService.INTENT_DEVICE_ADDRESS);
         Log.i("Intent Extras", "Address: "+address);
 
         TARGET_ADDRESS = address; //The MAC address of the device to connect to should be the chosen one passed from the device selection activity
