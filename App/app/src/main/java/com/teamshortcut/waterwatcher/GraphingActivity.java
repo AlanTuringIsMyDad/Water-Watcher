@@ -1,19 +1,24 @@
 package com.teamshortcut.waterwatcher;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
+import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBar;
@@ -21,6 +26,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
 
 import com.jjoe64.graphview.DefaultLabelFormatter;
@@ -28,7 +34,11 @@ import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.LegendRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
+import com.opencsv.CSVWriter;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -48,6 +58,11 @@ public class GraphingActivity extends AppCompatActivity {
     private LineGraphSeries<DataPoint> ySeries;
     private LineGraphSeries<DataPoint> absoluteSeries;
 
+    //Used to store and later access the data points, used when exporting to a CSV file
+    private ArrayList<Integer> xList;
+    private ArrayList<Integer> yList;
+    private ArrayList<Integer> absoluteList;
+
     long currentTime = 0; //in milliseconds
 
     //Increments the current time by 1 millisecond
@@ -61,6 +76,32 @@ public class GraphingActivity extends AppCompatActivity {
 
     /*Bluetooth Variables*/
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
+
+    //Numerical ID, used internally
+    private static final int PERMISSION_REQUEST_WRITE_STORAGE = 10;
+
+    private boolean enabled = false; //Tracks if storage permission is granted
+
+    private static final String DIRECTORY_NAME = "/Water-Watcher";
+    private static final String BASE_FILENAME = "/waterwatcher-graph-data";
+
+    //Called after a request for an Android permission
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_REQUEST_WRITE_STORAGE: {
+                //If request is cancelled, the result arrays are empty
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //Permission was granted
+                    enabled = true;
+                } else {
+                    //Permission was denied
+                    Toast.makeText(getApplicationContext(), getString(R.string.storage_request), Toast.LENGTH_LONG).show();
+                    enabled = false;
+                }
+            }
+        }
+    }
 
     @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
@@ -177,12 +218,16 @@ public class GraphingActivity extends AppCompatActivity {
             timer.scheduleAtFixedRate(timerTask, 0, 1);
         }
 
-        //Add the accelerometer received over BLE to the corresponding series
+        //Add the data to the lists used when later exporting to a CSV file
+        xList.add((int) x);
+        yList.add((int) y);
+        absoluteList.add(absoluteValue);
+
+        //Add the accelerometer received over BLE to the corresponding graph series
         xSeries.appendData(new DataPoint(currentTime, x), true, 1000);
         ySeries.appendData(new DataPoint(currentTime, y), true, 1000);
         absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), true, 1000);
     }
-
 
     //Sets up all graph settings and variables
     private void initialiseGraph() {
@@ -240,6 +285,70 @@ public class GraphingActivity extends AppCompatActivity {
         graph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
     }
 
+    //Recursively returns the next available numbered CSV file for a given filename, so as to not overwrite an existing file
+    //For example, if file.csv file1.csv and file2.csv exist, it will return file3.csv
+    private File numberUntilNewFile(String filename, int count){
+        File file;
+        if (count == 0){
+            file = new File(filename+".csv");
+        }
+        else{
+            file = new File(filename+count+".csv");
+        }
+
+        if (file.exists()){
+            return numberUntilNewFile(filename, count+1);
+        }
+        else{
+            return file;
+        }
+    }
+
+    //Exports the current graph data to a CSV file
+    private void exportCSV() throws IOException {
+        //If there is data to export, and all lists have the same amount of data (so there has not been an error)
+        if (xList != null && yList != null && absoluteList != null && xList.size() == yList.size() && xList.size() == absoluteList.size()){
+            if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){ //If external storage is available to write to
+                //Check the directory exists, if not then create it
+                File directory = new File(Environment.getExternalStorageDirectory() + DIRECTORY_NAME);
+                if (!(directory.exists() && directory.isDirectory())){
+                    if(!directory.mkdir()){ //If creating the directory failed
+                        Log.d("Exporting CSV", "Tried and failed to create new directory "+DIRECTORY_NAME);
+                        Toast.makeText(getApplicationContext(), R.string.file_error, Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                }
+
+                //The file that will be written to
+                File file = numberUntilNewFile(Environment.getExternalStorageDirectory().getAbsolutePath() + DIRECTORY_NAME + BASE_FILENAME, 0);
+                CSVWriter writer = new CSVWriter(new FileWriter(file), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.RFC4180_LINE_END);
+                writer.writeNext(new String[]{"x", "y", "absolute"}); //Header
+
+                int length = xList.size(); //All lists have the same size
+                //Convert ArrayList to Arrays
+                Integer[] xArray = (Integer[]) xList.toArray(new Integer[0]);
+                Integer[] yArray = (Integer[]) yList.toArray(new Integer[0]);
+                Integer[] absoluteArray = (Integer[]) absoluteList.toArray(new Integer[0]);
+
+                for (int i = 0; i < length; i++){ //Add each data point to a new line in the CSV file
+                    writer.writeNext(new String[]{Integer.toString(xArray[i]), Integer.toString(yArray[i]), Integer.toString(absoluteArray[i])});
+                }
+
+                writer.close(); //End writing the file
+                Log.d("Exporting CSV", "CSV file Written to" + String.valueOf(file));
+                Toast.makeText(getApplicationContext(), getString(R.string.exported_success, String.valueOf(file)), Toast.LENGTH_LONG).show();
+            }
+            else{
+                Log.d("Exporting CSV", "Could not access external storage.");
+                Toast.makeText(getApplicationContext(), R.string.exported_failure, Toast.LENGTH_LONG).show();
+            }
+        }
+        else{
+            Log.d("Exporting CSV", "Data is null or has unequal length.");
+            Toast.makeText(getApplicationContext(), R.string.no_data_to_export, Toast.LENGTH_LONG).show();
+        }
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -294,8 +403,44 @@ public class GraphingActivity extends AppCompatActivity {
             }
         });
 
+        //Initialises lists, used for exporting graph data to a CSV file
+        xList = new ArrayList<Integer>();
+        yList = new ArrayList<Integer>();
+        absoluteList = new ArrayList<Integer>();
+
         //Sets up graph that BLE data will be displayed on
         initialiseGraph();
+
+        FloatingActionButton fab = findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //TODO: image and/or csv?
+
+                //If storage permissions are not yet granted, request them
+                if (ContextCompat.checkSelfPermission(GraphingActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    //If running Android M or higher, explicitly request storage permission
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_WRITE_STORAGE);
+                    } else { //Otherwise, notify the user that location permission must be granted for Bluetooth to function correctly
+                        Toast.makeText(getApplicationContext(), R.string.old_version_storage_message, Toast.LENGTH_LONG).show();
+                    }
+                }
+                else{
+                    enabled = true;
+                }
+
+                if (enabled){
+                    try {
+                        exportCSV();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        Log.d("Exporting CSV", "IO error while trying to export data to CSV file.");
+                        Toast.makeText(getApplicationContext(), R.string.file_error, Toast.LENGTH_LONG).show();
+                    }
+                }
+            }
+        });
 
         //Start the ConnectionService and BLE communications
         Intent connectionServiceIntent = new Intent(this, ConnectionService.class);
@@ -311,7 +456,7 @@ public class GraphingActivity extends AppCompatActivity {
             unbindService(serviceConnection);
         }
         catch (Exception e){
-
+            e.printStackTrace();
         }
     }
 

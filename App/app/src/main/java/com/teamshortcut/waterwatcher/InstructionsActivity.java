@@ -188,7 +188,7 @@ public class InstructionsActivity extends AppCompatActivity {
             unbindService(serviceConnection);
         }
         catch (Exception e){
-
+            e.printStackTrace();
         }
     }
 

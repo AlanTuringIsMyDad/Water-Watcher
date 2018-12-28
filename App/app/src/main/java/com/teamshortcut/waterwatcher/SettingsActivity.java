@@ -481,7 +481,7 @@ public class SettingsActivity extends AppCompatActivity {
             unbindService(serviceConnection);
         }
         catch (Exception e){
-
+            e.printStackTrace();
         }
     }
 

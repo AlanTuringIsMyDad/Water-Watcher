@@ -123,7 +123,12 @@
     <string name="graph_plot_title_x">X</string>
     <string name="graph_plot_title_y">Y</string>
     <string name="graph_plot_title_absolute_value">Absolute Value</string>
-
+    <string name="file_error">There was an error while exporting graph data to an external file.</string>
+    <string name="storage_request">Permission to write to external storage is required to export your data: please restart the app and grant permissions to continue.</string>
+    <string name="old_version_storage_message">To export your data, please make sure that this app has permissions to write to external storage.</string>
+    <string name="exported_success">Graph data was successfully exported as a CSV file to %1$s</string>
+    <string name="exported_failure">There was an error accessing external storage, graph data could not be updated.</string>
+    <string name="no_data_to_export">No available graph data to export. Please try again.</string>
 
 
     <!--Settings Activity String-->
