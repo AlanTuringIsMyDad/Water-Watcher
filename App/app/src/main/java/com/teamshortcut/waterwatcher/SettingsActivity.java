@@ -381,6 +381,7 @@ public class SettingsActivity extends AppCompatActivity {
                         break;
                     case R.id.instructions_drawer_item:
                         intent = new Intent(SettingsActivity.this, InstructionsActivity.class);
+                        intent.putExtra(InstructionsActivity.PREVIOUS_ACTIVITY_INTENT, InstructionsActivity.SETTINGS_INTENT);
                         startActivity(intent);
                         finish();
                         break;

@@ -12,11 +12,14 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.NestedScrollView;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
+import android.widget.ScrollView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -27,6 +30,11 @@ public class InstructionsActivity extends AppCompatActivity {
     /*Bluetooth Variables*/
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
     public static String TARGET_ADDRESS; //MAC address of the micro:bit
+
+    /*Intent Constants*/
+    public static final String PREVIOUS_ACTIVITY_INTENT = "PREVIOUS_ACTIVITY";
+    public static final String GRAPHING_INTENT = "GRAPHING_ACTIVITY_INTENT";
+    public static final String SETTINGS_INTENT = "SETTINGS_ACTIVITY_INTENT";
 
     @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
@@ -139,8 +147,34 @@ public class InstructionsActivity extends AppCompatActivity {
         Intent intent = getIntent();
         String address = intent.getStringExtra(ConnectionService.INTENT_DEVICE_ADDRESS);
         Log.i("Intent Extras", "Address: "+address);
-
         TARGET_ADDRESS = address; //The MAC address of the device to connect to should be the chosen one passed from the device selection activity
+
+        //Scroll to the relevant part of the instructions depending on which view the user just came from
+        String previousActivity = intent.getStringExtra(PREVIOUS_ACTIVITY_INTENT);
+        final NestedScrollView scrollView = findViewById(R.id.instructions_scroll_view);
+
+        if (previousActivity != null){
+            switch (previousActivity){
+                case GRAPHING_INTENT:
+                    final TextView graphHeader = findViewById(R.id.graphing_header);
+                    scrollView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            scrollView.scrollTo(0, graphHeader.getTop());
+                        }
+                    });
+                    break;
+                case SETTINGS_INTENT:
+                    final TextView settingsHeader = findViewById(R.id.settings_header);
+                    scrollView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            scrollView.scrollTo(0, settingsHeader.getTop());
+                        }
+                    });
+                    break;
+            }
+        }
 
         //Start the ConnectionService and BLE communications
         Intent connectionServiceIntent = new Intent(this, ConnectionService.class);

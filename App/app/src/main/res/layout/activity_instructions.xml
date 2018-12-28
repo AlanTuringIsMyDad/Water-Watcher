@@ -47,7 +47,8 @@
                 android:layout_height="match_parent"
                 app:layout_behavior="@string/appbar_scrolling_view_behavior"
                 tools:context=".InstructionsActivity"
-                tools:showIn="@layout/activity_instructions">
+                tools:showIn="@layout/activity_instructions"
+                android:id="@+id/instructions_scroll_view">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -56,32 +57,32 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/app_name" />
+                        android:text="@string/app_name"
+                        style="@style/instructions_header"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/introduction_instructions_text" />
+                        android:text="@string/introduction_instructions_text"
+                        style="@style/instructions_text"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/connection_instructions_text" />
+                        android:text="@string/connection_instructions_text"
+                        style="@style/instructions_text"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/microbit_instructions_header" />
+                        android:text="@string/microbit_instructions_header"
+                        style="@style/instructions_header"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/microbit_instructions_text_1" />
+                        android:text="@string/microbit_instructions_text_1"
+                        style="@style/instructions_text"/>
 
                     <ImageView
                         android:layout_width="match_parent"
@@ -89,13 +90,14 @@
                         android:scaleType="centerInside"
                         android:adjustViewBounds="true"
                         android:src="@drawable/microbit_buttons"
-                        android:contentDescription="@string/microbit_button_image_content_description"/>
+                        android:contentDescription="@string/microbit_button_image_content_description"
+                        style="@style/instructions_image"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/microbit_instructions_text_2" />
+                        android:text="@string/microbit_instructions_text_2"
+                        style="@style/instructions_text"/>
 
                     <ImageView
                         android:layout_width="match_parent"
@@ -103,43 +105,130 @@
                         android:scaleType="centerInside"
                         android:adjustViewBounds="true"
                         android:src="@drawable/microbit_accelerometer"
-                        android:contentDescription="@string/microbit_accelerometer_image_content_description" />
+                        android:contentDescription="@string/microbit_accelerometer_image_content_description"
+                        style="@style/instructions_image"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/microbit_instructions_text_3" />
+                        android:text="@string/microbit_instructions_text_3"
+                        style="@style/instructions_text"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="1."
+                            style="@style/instructions_list_point" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/microbit_instructions_text_4_list_content_1"
+                            style="@style/instructions_list_content"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="2."
+                            style="@style/instructions_list_point" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/microbit_instructions_text_4_list_content_2"
+                            style="@style/instructions_list_content"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="3."
+                            style="@style/instructions_list_point" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/microbit_instructions_text_4_list_content_3"
+                            style="@style/instructions_list_content"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="4."
+                            style="@style/instructions_list_point" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/microbit_instructions_text_4_list_content_4"
+                            style="@style/instructions_list_content"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="5."
+                            style="@style/instructions_list_point" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/microbit_instructions_text_4_list_content_5"
+                            style="@style/instructions_list_content"/>
+                    </LinearLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/microbit_instructions_text_4_list" />
+                        android:id="@+id/graphing_header"
+                        android:text="@string/graphing_instructions_header"
+                        style="@style/instructions_header"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/graphing_instructions_header" />
+                        android:text="@string/graphing_instructions_text"
+                        style="@style/instructions_text"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/graphing_instructions_text" />
+                        android:id="@+id/settings_header"
+                        android:text="@string/settings_instructions_header"
+                        style="@style/instructions_header"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/settings_instructions_header" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/settings_instructions_text_1" />
+                        android:text="@string/settings_instructions_text_1"
+                        style="@style/instructions_text"/>
 
                     <ImageView
                         android:layout_width="match_parent"
@@ -147,27 +236,26 @@
                         android:scaleType="centerInside"
                         android:adjustViewBounds="true"
                         android:src="@drawable/table"
-                        android:contentDescription="@string/validation_table_image_content_description"/>
+                        android:contentDescription="@string/validation_table_image_content_description"
+                        style="@style/instructions_image"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
-                        android:text="@string/settings_instructions_text_2" />
-
-
-                    <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/text_margin"
-                    android:text="@string/further_info_header" />
+                        android:text="@string/settings_instructions_text_2"
+                        style="@style/instructions_text"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/text_margin"
+                        android:text="@string/further_info_header" style="@style/instructions_header"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="@string/further_info_text"
-                        android:autoLink="web" />
+                        android:autoLink="web"
+                        style="@style/instructions_text"/>
                 </LinearLayout>
             </android.support.v4.widget.NestedScrollView>
 

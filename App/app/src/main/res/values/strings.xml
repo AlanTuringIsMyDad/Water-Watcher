@@ -66,15 +66,23 @@
     <string name="microbit_accelerometer_image_content_description">The micro:bit\'s accelerometer measuring movement in the X, Y and Z axis</string>
     <string name="microbit_instructions_text_3">
         "The micro:bit's program has five different "modes", used for different features. To"
-        "navigate between these modes, the micro:bit's buttons are used.\n\n"
+        "navigate between these modes, the micro:bit's buttons are used."
     </string>
-    <string name="microbit_instructions_text_4_list">
-        <li>1. Calibration Mode: this is initiated the first time the micro:bit is booted. The micro:bit can be recalibrated by pressing Button A.</li>\n
-        <li>2. Vibration Checking Mode: the main part of the program, where the tap is continually checked, and the timer and alert is handled.</li>\n
-        <li>3. Connection Mode: this is where the micro:bit can connect to the smartphone app. Press Button B to enter this mode, at which point the micro:bit will wait for a connection to be initiated. Simply press Button B again to manually exit it if no connection is made.</li>\n
-        <li>4. Settings Mode: once the micro:bit is connected to the smartphone, pressing Button B again will enter Settings Mode. Here, the app can update various micro:bit settings over Bluetooth, such as the length of the timer.</li>\n
-        <li>5. Reset Mode: pressing both Button A and Button B simultaneously will enter the micro:bit into Reset Mode. Press both buttons again to reset the program completely, removing all stored values and reverting it to its state as if it had been booted for the first time. Press either button individually to cancel and exit this mode.</li>
-    </string> <!--TODO: dimensions/padding should indent this-->
+    <string name="microbit_instructions_text_4_list_content_1">
+        Calibration Mode: this is initiated the first time the micro:bit is booted. The micro:bit can be recalibrated by pressing Button A.
+    </string>
+    <string name="microbit_instructions_text_4_list_content_2">
+        Vibration Checking Mode: the main part of the program, where the tap is continually checked, and the timer and alert is handled.
+    </string>
+    <string name="microbit_instructions_text_4_list_content_3">
+        Connection Mode: this is where the micro:bit can connect to the smartphone app. Press Button B to enter this mode, at which point the micro:bit will wait for a connection to be initiated. Simply press Button B again to manually exit it if no connection is made.
+    </string>
+    <string name="microbit_instructions_text_4_list_content_4">
+        Settings Mode: once the micro:bit is connected to the smartphone, pressing Button B again will enter Settings Mode. Here, the app can update various micro:bit settings over Bluetooth, such as the length of the timer.
+    </string>
+    <string name="microbit_instructions_text_4_list_content_5">
+        Reset Mode: pressing both Button A and Button B simultaneously will enter the micro:bit into Reset Mode. Press both buttons again to reset the program completely, removing all stored values and reverting it to its state as if it had been booted for the first time. Press either button individually to cancel and exit this mode.
+    </string>
 
     <string name="graphing_instructions_header">Graphing</string>
     <string name="graphing_instructions_text">

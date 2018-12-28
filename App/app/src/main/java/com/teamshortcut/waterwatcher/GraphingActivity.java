@@ -284,6 +284,7 @@ public class GraphingActivity extends AppCompatActivity {
                         break;
                     case R.id.instructions_drawer_item:
                         intent = new Intent(GraphingActivity.this, InstructionsActivity.class);
+                        intent.putExtra(InstructionsActivity.PREVIOUS_ACTIVITY_INTENT, InstructionsActivity.GRAPHING_INTENT);
                         startActivity(intent);
                         finish();
                         break;
