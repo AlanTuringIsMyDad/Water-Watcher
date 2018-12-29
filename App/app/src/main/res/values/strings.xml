@@ -129,6 +129,11 @@
         "For further information, you can find the GitHub repository for this project among those at: https://github.com/teamshortcut"
     </string>
 
+    <string name="microbit_error_title">micro:bit Error</string>
+    <string name="microbit_error_content">
+        Unable to find the required services on the connected device. Please ensure the selected device is a BBC micro:bit, and that it is running the associated program and has the necessary BLE services. (Accelerometer and UART)\n\nApp functionality may not work correctly without these services. Would you like to check the device again for the required BLE services?"
+    </string>
+    <string name="device_services_error">Could not find the BLE services required for app functionality.</string>
 
 
     <!--Graphing Activity Strings-->

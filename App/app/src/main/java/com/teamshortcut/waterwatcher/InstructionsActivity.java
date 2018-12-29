@@ -1,8 +1,11 @@
 package com.teamshortcut.waterwatcher;
 
+import android.annotation.SuppressLint;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -13,6 +16,7 @@ import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.NestedScrollView;
 import android.support.v7.app.ActionBar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -33,6 +37,8 @@ public class InstructionsActivity extends AppCompatActivity {
     public static final String PREVIOUS_ACTIVITY_INTENT = "PREVIOUS_ACTIVITY";
     public static final String GRAPHING_INTENT = "GRAPHING_ACTIVITY_INTENT";
     public static final String SETTINGS_INTENT = "SETTINGS_ACTIVITY_INTENT";
+
+    private int refreshCount = 0; //tracks how many times the cache has been refreshed and BLE services have been (re)discovered
 
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
@@ -56,9 +62,41 @@ public class InstructionsActivity extends AppCompatActivity {
 
                     //Sometimes only generic services are initially found
                     if (stringGattServices == null || !stringGattServices.contains(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID) || !stringGattServices.contains(ConnectionService.UARTSERVICE_SERVICE_UUID)){
-                        //If the required services aren't found, refresh and retry service discovery
-                        connectionService.refreshDeviceCache();
-                        connectionService.discoverServices();
+                        //Only try refreshing 5 times, before warning the user that the required services could not be found
+                        if (refreshCount < 5){
+                            //If the required services aren't found, refresh and retry service discovery
+                            connectionService.refreshDeviceCache();
+                            connectionService.discoverServices();
+                            refreshCount += 1;
+                        }
+                        else{
+                            AlertDialog.Builder builder;
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                builder = new AlertDialog.Builder(InstructionsActivity.this, android.R.style.Theme_Material_Dialog_Alert);
+                            }
+                            else {
+                                builder = new AlertDialog.Builder(InstructionsActivity.this);
+                            }
+
+                            //Constructs an Alert Dialog that warns the user that the BLE services could not be found, and asks if they would like to recheck the device
+                            builder.setTitle(getString(R.string.microbit_error_title));
+                            builder.setMessage(getString(R.string.microbit_error_content));
+                            builder.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    //Check for BLE services again
+                                    refreshCount = 0;
+                                    connectionService.refreshDeviceCache();
+                                    connectionService.discoverServices();
+                                }
+                            });
+                            builder.setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialogInterface, int i) {
+                                    Toast.makeText(getApplicationContext(), R.string.device_services_error, Toast.LENGTH_LONG).show();
+                                }
+                            });
+                            builder.setIcon(android.R.drawable.ic_dialog_alert).show();
+                        }
                     }
                     break;
             }
