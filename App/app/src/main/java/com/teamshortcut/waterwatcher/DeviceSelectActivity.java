@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -95,7 +96,7 @@ public class DeviceSelectActivity extends AppCompatActivity {
         deviceListAdapter = new BLEListAdapter(){
             @Override
             public View getView(int position, View convertView, ViewGroup parent) { //defines the view that is displayed for each item in the list
-                ViewHolder viewHolder;
+                final ViewHolder viewHolder;
                 if (convertView == null){
                     //Assigns the views in device_list_item.xml to the viewHolder object, to be used in the ListView in this activity
                     convertView = DeviceSelectActivity.this.getLayoutInflater().inflate(R.layout.device_list_item, null);
@@ -116,7 +117,12 @@ public class DeviceSelectActivity extends AppCompatActivity {
                 if(deviceName != null && deviceName.length() > 0){ //If the discovered name is not null or empty
                     viewHolder.name.setText(deviceName);
                     if (deviceName.startsWith(getString(R.string.microbit_name_start)) || deviceName.startsWith(getString(R.string.bonded_prefix) + getString(R.string.microbit_name_start))){
-                        viewHolder.name.setBackgroundColor(Color.GREEN); //Highlight in green devices that are likely to be micro:bits
+                        //Highlight in textured green any devices that are likely to be micro:bits
+                        //viewHolder.name.setBackgroundColor(Color.GREEN);
+                        Drawable stripes = getResources().getDrawable(R.drawable.green_stripes);
+                        stripes.setAlpha(155);
+                        viewHolder.name.setBackground(stripes);
+                        viewHolder.name.setTextColor(Color.BLACK); //Ensures text stands out from the background
                     }
                 }
                 else{
@@ -133,7 +139,13 @@ public class DeviceSelectActivity extends AppCompatActivity {
 
         //Initialises BLE objects
         final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        bluetoothAdapter = bluetoothManager.getAdapter(); //TODO: handle null exception?
+        if (bluetoothManager != null) {
+            bluetoothAdapter = bluetoothManager.getAdapter();
+        }
+        else{
+            Toast.makeText(getApplicationContext(), R.string.bluetooth_enabled, Toast.LENGTH_LONG).show();
+        }
+
         scanner = bluetoothAdapter.getBluetoothLeScanner();
 
         //Ensures bluetooth is enabled

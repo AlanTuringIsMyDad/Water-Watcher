@@ -1,7 +1,6 @@
 package com.teamshortcut.waterwatcher;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -43,16 +42,13 @@ import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
-//TODO: http://www.android-graphview.org/zooming-and-scrolling/
-//TODO: Add graph.getViewport().setScrollable(true); but only on disconnect? Otherwise fatal exception occurs
-//TODO: Check for BLE object if null? If not null then disable scroll?
-//TODO: label x axis as time in seconds and y axis as g-force(?)
-
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class GraphingActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
 
     /*Graph Variables*/
+    GraphView graph;
+
     //Used to store the data points that will be displayed to the graph
     private LineGraphSeries<DataPoint> xSeries;
     private LineGraphSeries<DataPoint> ySeries;
@@ -104,7 +100,6 @@ public class GraphingActivity extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
         public void handleMessage(Message msg){
@@ -225,10 +220,17 @@ public class GraphingActivity extends AppCompatActivity {
         yList.add((int) y);
         absoluteList.add(absoluteValue);
 
+        //If the Viewport (what the user can see) is at or almost at the current point in the graph, the Viewport should scroll to the new data
+        //Otherwise, it should leave the position where it is, to avoid interrupting the user if they are looking at earlier parts of the graph
+        boolean scroll = false;
+        if ((graph.getViewport().getMaxX(true) - graph.getViewport().getMaxX(false)) <= 500){
+            scroll = true;
+        }
+
         //Add the accelerometer received over BLE to the corresponding graph series
-        xSeries.appendData(new DataPoint(currentTime, x), true, 1000);
-        ySeries.appendData(new DataPoint(currentTime, y), true, 1000);
-        absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), true, 1000);
+        xSeries.appendData(new DataPoint(currentTime, x), scroll, 1000);
+        ySeries.appendData(new DataPoint(currentTime, y), scroll, 1000);
+        absoluteSeries.appendData(new DataPoint(currentTime, absoluteValue), scroll, 1000);
     }
 
     //Sets up all graph settings and variables
@@ -249,7 +251,7 @@ public class GraphingActivity extends AppCompatActivity {
         absoluteSeries.setColor(Color.RED);
 
         //Links graph object to the correct XML element
-        GraphView graph = (GraphView) findViewById(R.id.graph);
+        graph = (GraphView) findViewById(R.id.graph);
 
         //Assigns a custom LabelRenderer to the graph; this customises the numbered markers along the axes
         graph.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
@@ -264,6 +266,10 @@ public class GraphingActivity extends AppCompatActivity {
                 }
             }
         });
+
+        //Sets the titles of each axis
+        graph.getGridLabelRenderer().setHorizontalAxisTitle(getString(R.string.graph_axis_title_time));
+        graph.getGridLabelRenderer().setVerticalAxisTitle(getString(R.string.graph_axis_title_g));
 
         //The x axis should display 10 markers, and round the numbers to be human readable
         graph.getGridLabelRenderer().setNumHorizontalLabels(10);
@@ -285,6 +291,9 @@ public class GraphingActivity extends AppCompatActivity {
         //Displays the legend at the top of the graph
         graph.getLegendRenderer().setVisible(true);
         graph.getLegendRenderer().setAlign(LegendRenderer.LegendAlign.TOP);
+
+        graph.getViewport().setScrollable(true); // enables horizontal scrolling
+        graph.getViewport().setScrollableY(true); // enables vertical scrolling
     }
 
     //Recursively returns the next available numbered CSV file for a given filename, so as to not overwrite an existing file
@@ -419,8 +428,6 @@ public class GraphingActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //TODO: image and/or csv?
-
                 //If storage permissions are not yet granted, request them
                 if (ContextCompat.checkSelfPermission(GraphingActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     //If running Android M or higher, explicitly request storage permission

@@ -1,6 +1,5 @@
 package com.teamshortcut.waterwatcher;
 
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.content.ComponentName;
 import android.content.DialogInterface;
@@ -43,8 +42,6 @@ import java.util.regex.Pattern;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class SettingsActivity extends AppCompatActivity {
-    //TODO: fix app name resource not being discovered/displayed correctly
-
     /*Views*/
     private DrawerLayout drawerLayout; //Used for the navigation bar
     //Input views
@@ -60,16 +57,17 @@ public class SettingsActivity extends AppCompatActivity {
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
 
     /*Constants*/
-    private static String TIMER_KEY = "TIMER";
-    private static String PERIOD_KEY = "PERIOD";
-    private static String SAMPLES_KEY = "SAMPLES";
-    private static String X_KEY = "X";
-    private static String Y_KEY = "Y";
-    private static String THRESHOLD_KEY = "THRESHOLD";
-    private static String LOG_INVALID_INPUT = "Invalid input";
+    private static final String TIMER_KEY = "TIMER";
+    private static final String PERIOD_KEY = "PERIOD";
+    private static final String SAMPLES_KEY = "SAMPLES";
+    private static final String X_KEY = "X";
+    private static final String Y_KEY = "Y";
+    private static final String THRESHOLD_KEY = "THRESHOLD";
+    private static final String LOG_INVALID_INPUT = "Invalid input";
 
     //Default values for each setting
-    private static HashMap<String, Integer> DEFAULT_VALUES = new HashMap<String, Integer>();{
+    private static HashMap<String, Integer> DEFAULT_VALUES = new HashMap<String, Integer>();
+    static {
         {
             DEFAULT_VALUES.put(TIMER_KEY, 30);
             DEFAULT_VALUES.put(PERIOD_KEY, 160);
@@ -80,7 +78,6 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
         public void handleMessage(Message msg){
@@ -276,7 +273,7 @@ public class SettingsActivity extends AppCompatActivity {
         String threshold = String.valueOf(thresholdEditText.getText());
 
         String result = validateSettings(timer, period, samples, x, y, threshold);
-        if (result == "") { //Validation returned no errors, so construct the settings string
+        if (result.equals("")) { //Validation returned no errors, so construct the settings string
             settings = timer + "," + period + "," + samples + "," + x + "," + y + "," + threshold;
         }
         else{ //Validation returned errors, so display that to the user

@@ -44,22 +44,22 @@ public class ConnectionService extends Service {
 
     //BLUETOOTH UUID CONSTANTS
     //Each Service has Characteristics, which are used to read/write data
-    public static String GENERICACCESS_SERVICE_UUID = "00001800-0000-1000-8000-00805f9b34fb";
-    public static String DEVICENAME_CHARACTERISTIC_UUID = "00002a00-0000-1000-8000-00805f9b34fb";
-    public static String ACCELEROMETERSERVICE_SERVICE_UUID = "e95d0753-251d-470a-a062-fa1922dfa9a8";
-    public static String ACCELEROMETERDATA_CHARACTERISTIC_UUID = "e95dca4b-251d-470a-a062-fa1922dfa9a8";
-    public static String ACCELEROMETERPERIOD_CHARACTERISTIC_UUID = "e95dfb24-251d-470a-a062-fa1922dfa9A8";
-    public static String UARTSERVICE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-    public static String UART_RX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; //Reads from the micro:bit
-    public static String UART_TX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; //Writes to the micro:bit
-    public static String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
+    public static final String GENERICACCESS_SERVICE_UUID = "00001800-0000-1000-8000-00805f9b34fb";
+    public static final String DEVICENAME_CHARACTERISTIC_UUID = "00002a00-0000-1000-8000-00805f9b34fb";
+    public static final String ACCELEROMETERSERVICE_SERVICE_UUID = "e95d0753-251d-470a-a062-fa1922dfa9a8";
+    public static final String ACCELEROMETERDATA_CHARACTERISTIC_UUID = "e95dca4b-251d-470a-a062-fa1922dfa9a8";
+    public static final String ACCELEROMETERPERIOD_CHARACTERISTIC_UUID = "e95dfb24-251d-470a-a062-fa1922dfa9A8";
+    public static final String UARTSERVICE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    public static final String UART_RX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; //Reads from the micro:bit
+    public static final String UART_TX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; //Writes to the micro:bit
+    public static final String CLIENT_CHARACTERISTIC_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
 
     //ADDITIONAL CONSTANTS
-    public static String LOG_BLE_DEVICE = "BLE DEVICE";
-    public static String LOG_GATT_CALLBACK = "Gatt Callback";
-    public static String LOG_BLE_SERVICES = "BLE Services";
-    public static String LOG_CONNECTION_SERVICE = "ConnectionService";
-    public static String INTENT_DEVICE_ADDRESS = "DEVICEADDRESS";
+    public static final String LOG_BLE_DEVICE = "BLE DEVICE";
+    public static final String LOG_GATT_CALLBACK = "Gatt Callback";
+    public static final String LOG_BLE_SERVICES = "BLE Services";
+    public static final String LOG_CONNECTION_SERVICE = "ConnectionService";
+    public static final String INTENT_DEVICE_ADDRESS = "DEVICEADDRESS";
 
     //Bluetooth Objects
     private BluetoothAdapter bluetoothAdapter;
@@ -376,8 +376,7 @@ public class ConnectionService extends Service {
 
         BluetoothGattDescriptor valueDescriptor = bluetoothGatt.getService(serviceUUID).getCharacteristic(characteristicUUID).getDescriptor(descriptorUUID);
         valueDescriptor.setValue(value); //Set the value of the descriptor
-        boolean result = bluetoothGatt.writeDescriptor(valueDescriptor); //Write the value of the descriptor to the device
-        return result;
+        return bluetoothGatt.writeDescriptor(valueDescriptor); //Write the value of the descriptor to the device
     }
 
     //Set value for a characteristic and then write it
@@ -421,8 +420,7 @@ public class ConnectionService extends Service {
             BluetoothGatt localGatt = bluetoothGatt;
             Method localMethod = localGatt.getClass().getMethod("refresh", new Class[0]); //Gets the "refresh" method
             if (localMethod != null){
-                boolean bool = ((Boolean) localMethod.invoke(localGatt, new Object[0])).booleanValue(); //Invokes the method, essentially forcing BLE services to be rediscovered
-                return bool;
+                return ((Boolean) localMethod.invoke(localGatt, new Object[0])).booleanValue(); //Invokes the method, essentially forcing BLE services to be rediscovered
             }
         }
         catch (Exception localException){

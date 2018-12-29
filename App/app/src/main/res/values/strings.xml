@@ -14,7 +14,7 @@
     <!--Device Select Strings-->
     <string name="location_request">Location permission is required to make Bluetooth connections: please restart the app and grant location permission to continue.</string>
     <string name="old_version_location_message">This app requires location permissions to allow Bluetooth to function correctly. If the app is not working, please ensure location permissions have been granted.</string>
-    <string name="bluetooth_enabled">"Please make sure Bluetooth is enabled and permissions are granted before scanning."</string>
+    <string name="bluetooth_enabled">Please make sure Bluetooth is enabled and permissions are granted before scanning.</string>
     <string name="must_pair_device">Device must be paired before connecting!</string>
     <string name="bonded_prefix">"(BONDED) "</string>
     <string name="microbit_name_start">BBC micro:bit</string>
@@ -87,10 +87,12 @@
     <string name="graphing_instructions_header">Graphing</string>
     <string name="graphing_instructions_text_1">
         "Once the micro:bit is connected, it will transmit the values measured from its"
-        "accelerometer to the app. This data is automatically graphed in real-time. The graph will"
-        "show the values from the accelerometer's X and Y axes, as well as the absolute value,"
-        "calculated by the square root of the sum of the squares of the values from both axes. These"
-        "values are measured in milli-g, and are plotted against time in seconds."
+        "accelerometer to the app. This data is automatically graphed in real-time, and the"
+        "generated graph can be scrolled through to inspect the data as it comes in, or that"
+        "was received earlier on. The graph will show the values from the accelerometer's X and Y"
+        "axes, as well as the absolute value, calculated by the square root of the sum of the"
+        "squares of the values from both axes. These values are measured in milli-g, and are"
+        "plotted against time in seconds."
     </string>
     <string name="graphing_instructions_text_2">
         "This data can be exported as a CSV file to external storage. Simply press the export"
@@ -114,7 +116,7 @@
         "sent over Bluetooth.\n\nAll input is validated to make sure that the values are"
         "appropriate for all settings. The settings and their validation is as follows:"
     </string>
-    <string name="validation_table_image_content_description">A table showing the names, decriptions and validations of each updatable setting</string>
+    <string name="validation_table_image_content_description">A table showing the names, descriptions and validations of each updatable setting</string>
     <string name="settings_instructions_text_2">
         "The micro:bit measures values between -1024 and 1024 milli-g on each axis. The threshold"
         "is the absolute value of both axes, and √1024² + 1024² ≈ 1448. The micro:bit's accelerometer will only accept certain periods; although it will also accept a period of 1ms, due to the polling frequency that would cause it will result in the Water Watcher program crashing due to memory issues. All other validation is"
@@ -130,6 +132,8 @@
 
 
     <!--Graphing Activity Strings-->
+    <string name="graph_axis_title_time">Time (seconds)</string>
+    <string name="graph_axis_title_g">milli-g</string>
     <string name="graph_plot_title_x">X</string>
     <string name="graph_plot_title_y">Y</string>
     <string name="graph_plot_title_absolute_value">Absolute Value</string>

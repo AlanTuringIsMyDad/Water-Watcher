@@ -1,6 +1,5 @@
 package com.teamshortcut.waterwatcher;
 
-import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -18,7 +17,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,7 +34,6 @@ public class InstructionsActivity extends AppCompatActivity {
     public static final String GRAPHING_INTENT = "GRAPHING_ACTIVITY_INTENT";
     public static final String SETTINGS_INTENT = "SETTINGS_ACTIVITY_INTENT";
 
-    @SuppressLint("HandlerLeak") //TODO: remove
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
         public void handleMessage(Message msg){
