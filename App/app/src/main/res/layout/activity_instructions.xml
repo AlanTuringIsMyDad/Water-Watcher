@@ -214,7 +214,13 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/graphing_instructions_text"
+                        android:text="@string/graphing_instructions_text_1"
+                        style="@style/instructions_text"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/graphing_instructions_text_2"
                         style="@style/instructions_text"/>
 
                     <TextView

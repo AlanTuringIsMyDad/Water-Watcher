@@ -59,6 +59,7 @@ public class GraphingActivity extends AppCompatActivity {
     private LineGraphSeries<DataPoint> absoluteSeries;
 
     //Used to store and later access the data points, used when exporting to a CSV file
+    private ArrayList<Long> timeList;
     private ArrayList<Integer> xList;
     private ArrayList<Integer> yList;
     private ArrayList<Integer> absoluteList;
@@ -219,6 +220,7 @@ public class GraphingActivity extends AppCompatActivity {
         }
 
         //Add the data to the lists used when later exporting to a CSV file
+        timeList.add(currentTime);
         xList.add((int) x);
         yList.add((int) y);
         absoluteList.add(absoluteValue);
@@ -307,7 +309,7 @@ public class GraphingActivity extends AppCompatActivity {
     //Exports the current graph data to a CSV file
     private void exportCSV() throws IOException {
         //If there is data to export, and all lists have the same amount of data (so there has not been an error)
-        if (xList != null && yList != null && absoluteList != null && xList.size() == yList.size() && xList.size() == absoluteList.size()){
+        if (xList != null && yList != null && absoluteList != null && timeList != null && xList.size() == yList.size() && yList.size() == absoluteList.size() && absoluteList.size() == timeList.size()){
             if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){ //If external storage is available to write to
                 //Check the directory exists, if not then create it
                 File directory = new File(Environment.getExternalStorageDirectory() + DIRECTORY_NAME);
@@ -322,16 +324,17 @@ public class GraphingActivity extends AppCompatActivity {
                 //The file that will be written to
                 File file = numberUntilNewFile(Environment.getExternalStorageDirectory().getAbsolutePath() + DIRECTORY_NAME + BASE_FILENAME, 0);
                 CSVWriter writer = new CSVWriter(new FileWriter(file), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.RFC4180_LINE_END);
-                writer.writeNext(new String[]{"x", "y", "absolute"}); //Header
+                writer.writeNext(new String[]{"time(ms)", "x", "y", "absolute_value"}); //Header
 
                 int length = xList.size(); //All lists have the same size
                 //Convert ArrayList to Arrays
+                Long[] timeArray = (Long[]) timeList.toArray(new Long[0]);
                 Integer[] xArray = (Integer[]) xList.toArray(new Integer[0]);
                 Integer[] yArray = (Integer[]) yList.toArray(new Integer[0]);
                 Integer[] absoluteArray = (Integer[]) absoluteList.toArray(new Integer[0]);
 
                 for (int i = 0; i < length; i++){ //Add each data point to a new line in the CSV file
-                    writer.writeNext(new String[]{Integer.toString(xArray[i]), Integer.toString(yArray[i]), Integer.toString(absoluteArray[i])});
+                    writer.writeNext(new String[]{Long.toString(timeArray[i]), Integer.toString(xArray[i]), Integer.toString(yArray[i]), Integer.toString(absoluteArray[i])});
                 }
 
                 writer.close(); //End writing the file
@@ -404,6 +407,7 @@ public class GraphingActivity extends AppCompatActivity {
         });
 
         //Initialises lists, used for exporting graph data to a CSV file
+        timeList = new ArrayList<Long>();
         xList = new ArrayList<Integer>();
         yList = new ArrayList<Integer>();
         absoluteList = new ArrayList<Integer>();

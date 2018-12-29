@@ -85,10 +85,20 @@
     </string>
 
     <string name="graphing_instructions_header">Graphing</string>
-    <string name="graphing_instructions_text">
+    <string name="graphing_instructions_text_1">
         "Once the micro:bit is connected, it will transmit the values measured from its"
-        "accelerometer to the app, which is automatically graphed in real-time, and can be"
-        "exported."
+        "accelerometer to the app. This data is automatically graphed in real-time. The graph will"
+        "show the values from the accelerometer's X and Y axes, as well as the absolute value,"
+        "calculated by the square root of the sum of the squares of the values from both axes. These"
+        "values are measured in milli-g, and are plotted against time in seconds."
+    </string>
+    <string name="graphing_instructions_text_2">
+        "This data can be exported as a CSV file to external storage. Simply press the export"
+        "button (blue, in the bottom right of the screen) and the data points for the X, Y and"
+        "absolute values, as well as the corresponding time in milliseconds, will be exported to"
+        "the Water Watcher folder in external storage. This CSV contains a header as its first"
+        "line, and then each following line contains the time and accelerometer values for each"
+        "data point."
     </string>
 
     <string name="settings_instructions_header">Settings</string>

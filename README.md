@@ -47,7 +47,9 @@ Once the micro:bit is paired, make sure that it is in Connection Mode by pressin
 To reselect a device at any time, simply pick "Select Device" from the navigation bar within the app, which will allow you to re-scan for available devices and select the one you'd like to connect to. Please note that re-entering this screen will cause the current device to be disconnected.
 
 ### Graphing
-Once the micro:bit is connected, it will transmit the values measured from its accelerometer to the app, which is automatically graphed in real-time, and can be exported.
+Once the micro:bit is connected, it will transmit the values measured from its accelerometer to the app. This data is automatically graphed in real-time. The graph will show the values from the accelerometer's X and Y axes, as well as the absolute value, calculated by the square root of the sum of the squares of the values from both axes. These values are measured in milli-g, and are plotted against time in seconds.
+
+This data can be exported as a CSV file to external storage. Simply press the export button (blue, in the bottom right of the screen) and the data points for the X, Y and absolute values, as well as the corresponding time in milliseconds, will be exported to the Water Watcher folder in external storage. This CSV contains a header as its first line, and then each following line contains the time and accelerometer values for each data point.
 
 ### Settings
 The app can update various micro:bit settings over Bluetooth. To do this, first make sure the micro:bit is connected and in Settings Mode. To send the current settings to the app to be displayed, press Button A while in this mode. To update the settings on the micro:bit, enter the new values in the app and press the button to send these settings over BLE. To exit this mode on the micro:bit, either update the settings and the mode will be exited automatically, or press the button in the app to cancel updating settings. You can also revert to the default values in the app by pressing the button to reset values to their defaults. This will not revert the settings on the micro:bit until those values are sent over Bluetooth.
