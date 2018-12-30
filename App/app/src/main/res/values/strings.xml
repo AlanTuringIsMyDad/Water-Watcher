@@ -136,6 +136,7 @@
     <string name="device_services_error">Could not find the BLE services required for app functionality.</string>
 
 
+
     <!--Graphing Activity Strings-->
     <string name="graph_axis_title_time">Time (seconds)</string>
     <string name="graph_axis_title_g">milli-g</string>
@@ -148,6 +149,7 @@
     <string name="exported_success">Graph data was successfully exported as a CSV file to %1$s</string>
     <string name="exported_failure">There was an error accessing external storage, graph data could not be updated.</string>
     <string name="no_data_to_export">No available graph data to export. Please try again.</string>
+
 
 
     <!--Settings Activity String-->

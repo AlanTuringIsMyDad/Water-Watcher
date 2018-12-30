@@ -44,9 +44,9 @@ import java.util.TimerTask;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class GraphingActivity extends AppCompatActivity {
-    private DrawerLayout drawerLayout;
+    private DrawerLayout drawerLayout; //Used for the navigation bar
 
-    /*Graph Variables*/
+    //Graph Variables
     GraphView graph;
 
     //Used to store the data points that will be displayed to the graph
@@ -71,13 +71,13 @@ public class GraphingActivity extends AppCompatActivity {
         }
     };
 
-    /*Bluetooth Variables*/
+    //Bluetooth Variables
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
 
-    //Numerical ID, used internally
-    private static final int PERMISSION_REQUEST_WRITE_STORAGE = 10;
-
     private boolean enabled = false; //Tracks if storage permission is granted
+
+    //Numerical ID, used internally
+    private static final int PERMISSION_REQUEST_WRITE_STORAGE = 1;
 
     private static final String DIRECTORY_NAME = "/Water-Watcher";
     private static final String BASE_FILENAME = "/waterwatcher-graph-data";
@@ -102,7 +102,7 @@ public class GraphingActivity extends AppCompatActivity {
 
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
-        public void handleMessage(Message msg){
+        public void handleMessage(Message msg){ //Handles messages from the ConnectionService, and is where BLE activity is handled
             Bundle bundle; //The data the message contains
             String serviceUUID = "";
             String characteristicUUID = "";
@@ -151,7 +151,9 @@ public class GraphingActivity extends AppCompatActivity {
         }
     };
 
-    private final ServiceConnection serviceConnection = new ServiceConnection() { //The Android service for the ConnectionService class
+    //The Android service for the ConnectionService class
+    //Enables the Bluetooth connection to persist between activities
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             connectionService = ((ConnectionService.LocalBinder) service).getService();

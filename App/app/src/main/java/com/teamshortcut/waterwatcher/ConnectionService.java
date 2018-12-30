@@ -277,12 +277,7 @@ public class ConnectionService extends Service {
         if (bluetoothManager==null || bluetoothAdapter==null){
             return false;
         }
-        else if (!bluetoothAdapter.isEnabled()) {
-            return false;
-        }
-        else {
-            return true;
-        }
+        else return bluetoothAdapter.isEnabled();
     }
 
     public boolean isConnected(){

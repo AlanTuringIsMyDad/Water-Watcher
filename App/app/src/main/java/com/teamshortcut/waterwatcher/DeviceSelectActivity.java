@@ -29,7 +29,7 @@ import android.widget.Toast;
 public class DeviceSelectActivity extends AppCompatActivity {
     //Numerical IDs, used internally
     private final static int REQUEST_ENABLE_BT = 1;
-    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 10;
+    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 2;
 
     //Bluetooth variables
     BluetoothAdapter bluetoothAdapter;

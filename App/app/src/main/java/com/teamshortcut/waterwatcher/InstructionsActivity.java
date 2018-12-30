@@ -27,13 +27,13 @@ import android.widget.Toast;
 import java.util.ArrayList;
 
 public class InstructionsActivity extends AppCompatActivity {
-    private DrawerLayout drawerLayout;
+    private DrawerLayout drawerLayout; //Used for the navigation bar
 
-    /*Bluetooth Variables*/
+    //Bluetooth Variables
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
     public static String TARGET_ADDRESS; //MAC address of the micro:bit
 
-    /*Intent Constants*/
+    //Intent Constants
     public static final String PREVIOUS_ACTIVITY_INTENT = "PREVIOUS_ACTIVITY";
     public static final String GRAPHING_INTENT = "GRAPHING_ACTIVITY_INTENT";
     public static final String SETTINGS_INTENT = "SETTINGS_ACTIVITY_INTENT";
@@ -103,7 +103,9 @@ public class InstructionsActivity extends AppCompatActivity {
         }
     };
 
-    private final ServiceConnection serviceConnection = new ServiceConnection() { //The Android service for the ConnectionService class
+    //The Android service for the ConnectionService class
+    //Enables the Bluetooth connection to persist between activities
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             connectionService = ((ConnectionService.LocalBinder) service).getService();

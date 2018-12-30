@@ -42,7 +42,7 @@ import java.util.regex.Pattern;
 
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class SettingsActivity extends AppCompatActivity {
-    /*Views*/
+    //Views
     private DrawerLayout drawerLayout; //Used for the navigation bar
     //Input views
     EditText timerEditText;
@@ -53,10 +53,11 @@ public class SettingsActivity extends AppCompatActivity {
     EditText yEditText;
     EditText thresholdEditText;
 
-    /*Bluetooth Variables*/
+    //Bluetooth Variables
     private ConnectionService connectionService; //The Android service that handles all Bluetooth communications
 
-    /*Constants*/
+    //CONSTANTS
+    private static final String EOM_CHAR = "\\"; //The End of Message character the micro:bit program expects in BLE communications is a backslash
     private static final String TIMER_KEY = "TIMER";
     private static final String PERIOD_KEY = "PERIOD";
     private static final String SAMPLES_KEY = "SAMPLES";
@@ -80,7 +81,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private Handler messageHandler = new Handler() { //Handles messages from the ConnectionService, and is where BLE activity is handled
         @Override
-        public void handleMessage(Message msg){
+        public void handleMessage(Message msg){ //Handles messages from the ConnectionService, and is where BLE activity is handled
             Bundle bundle; //The data the message contains
             String serviceUUID = "";
             String characteristicUUID = "";
@@ -142,7 +143,9 @@ public class SettingsActivity extends AppCompatActivity {
         }
     };
 
-    private final ServiceConnection serviceConnection = new ServiceConnection() { //The Android service for the ConnectionService class
+    //The Android service for the ConnectionService class
+    //Enables the Bluetooth connection to persist between activities
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             connectionService = ((ConnectionService.LocalBinder) service).getService();
@@ -335,7 +338,7 @@ public class SettingsActivity extends AppCompatActivity {
         MenuItem current = navigationView.getMenu().getItem(2);
         current.setChecked(true);
 
-        //Input views
+        //Initialise variables input views
         timerEditText = (EditText) findViewById(R.id.timer_textbox);
         periodSpinner = (Spinner) findViewById(R.id.period_spinner);
         samplesEditText = (EditText) findViewById(R.id.samples_textbox);
@@ -399,7 +402,7 @@ public class SettingsActivity extends AppCompatActivity {
                 if (connectionService.isConnected()){
                     try {
                         if (getAndFormatSettings() != null){
-                            String text = getAndFormatSettings() + "\\"; //micro:bit expects the data to be terminated with a backslash
+                            String text = getAndFormatSettings() + EOM_CHAR; //micro:bit expects the data to be terminated with a backslash
                             Log.i("Data", text);
                             byte[] ascii = text.getBytes("US-ASCII"); //Convert from string to a bytearray to be sent
                             connectionService.setCharacteristicValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_TX_CHARACTERISTIC_UUID, ascii);
@@ -425,7 +428,7 @@ public class SettingsActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if (connectionService.isConnected()){
                     try {
-                        String text = "CANCEL\\";
+                        String text = "CANCEL"+EOM_CHAR;
                         byte[] ascii = text.getBytes("US-ASCII");
                         connectionService.setCharacteristicValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_TX_CHARACTERISTIC_UUID, ascii);
                     } catch (UnsupportedEncodingException e) {
@@ -443,6 +446,7 @@ public class SettingsActivity extends AppCompatActivity {
         resetButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                //Passing updateSettings null parameters will reset all input values to default
                 updateSettings(null, null, null, null, null, null);
             }
         });
@@ -460,7 +464,6 @@ public class SettingsActivity extends AppCompatActivity {
                     buttonHeights.add(sendButton.getMeasuredHeight());
                     buttonHeights.add(cancelButton.getMeasuredHeight());
                     buttonHeights.add(resetButton.getMeasuredHeight());
-                    Log.i("Heights", buttonHeights.toString());
                     sendButton.setHeight(Collections.max(buttonHeights));
                     cancelButton.setHeight(Collections.max(buttonHeights));
                     resetButton.setHeight(Collections.max(buttonHeights));
