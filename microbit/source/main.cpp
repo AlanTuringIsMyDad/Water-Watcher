@@ -217,7 +217,7 @@ void beginChecking(){
                 timer = timer - 1; //Otherwise, there really are vibrations, so decrement the timer by 1
             }
         }
-        //Displays the current timer value to the micro:bit LEDs and outputs it over serial
+        //Displays the current timer value to the micro:bit LEDs
         uBit.display.printAsync(timer, 250);
     }
     //At this point the loop has ended and Connection Mode must have been initiated

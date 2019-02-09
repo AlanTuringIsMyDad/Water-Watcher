@@ -285,7 +285,7 @@ public class GraphingActivity extends AppCompatActivity {
         //Sets X and Y axis bounds
         graph.getViewport().setYAxisBoundsManual(true);
         graph.getViewport().setMinY(-1024);
-        graph.getViewport().setMaxY(1774); //As sqrt(1024^2 + 1024^2 + 1024^2) ~= 1774
+        graph.getViewport().setMaxY(1448); //As sqrt(1024^2 + 1024^2) ~= 1448
         graph.getViewport().setXAxisBoundsManual(true);
         graph.getViewport().setMinX(0);
         graph.getViewport().setMaxX(10000);

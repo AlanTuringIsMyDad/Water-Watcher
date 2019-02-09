@@ -105,7 +105,7 @@ public class SettingsActivity extends AppCompatActivity {
                         connectionService.discoverServices();
                     }
                     else {
-                        //Sets up notifications for the Accelerometer Data characteristic
+                        //Sets up notifications for the UART RX characteristic
                         connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, true);
                         //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
                         connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
@@ -118,7 +118,7 @@ public class SettingsActivity extends AppCompatActivity {
                     descriptorUUID = bundle.getString(ConnectionService.BUNDLE_DESCRIPTOR_UUID);
                     bytes = bundle.getByteArray(ConnectionService.BUNDLE_VALUE);
 
-                    if (characteristicUUID.equals(ConnectionService.UART_RX_CHARACTERISTIC_UUID)){ //If the received data is from the Accelerometer Data characteristic
+                    if (characteristicUUID.equals(ConnectionService.UART_RX_CHARACTERISTIC_UUID)){ //If the received data is from the UART RX characteristic
                        String ascii = "NULL";
                         try { //Convert from a bytearray to a string
                             ascii = new String(bytes,"US-ASCII");
@@ -152,7 +152,7 @@ public class SettingsActivity extends AppCompatActivity {
             connectionService.setActivityHandler(messageHandler); //Assigns messageHandler to handle all messages from this service
 
             if (connectionService.isConnected()){
-                //Sets up notifications for the Accelerometer Data characteristic
+                //Sets up notifications for the UART RX characteristic
                 connectionService.setCharacteristicNotification(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, true);
                 //GATT Descriptor is used to write to the micro:bit, to enable notifications and tell the device to start streaming data
                 connectionService.setDescriptorValueAndWrite(ConnectionService.UARTSERVICE_SERVICE_UUID, ConnectionService.UART_RX_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
@@ -171,7 +171,7 @@ public class SettingsActivity extends AppCompatActivity {
             Integer.parseInt(string);
             return true;
         }
-        catch(NumberFormatException e){
+        catch(Exception e){
             return false;
         }
     }
