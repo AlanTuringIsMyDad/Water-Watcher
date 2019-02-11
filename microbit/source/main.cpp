@@ -15,8 +15,8 @@ threshold : Above this threshold, there are considered to be vibrations. Calcula
 numSamples : The number of samples taken in checkVibrations()
 period: The accelerometer period for the micro:bit
 timerValue : The initial value of the timer
-timer : the current value of the timer
 
+timer : the current value of the timer
 The program uses an integer timer variable and uBit.sleep() calls, rather than a more specialised timer like a Ticker.
 This is done mainly to conserve memory, as memory on the micro:bit is very limited and needed for other services like BLE.
 However, it also serves to ensure fibers or other tasks (such as checkVibrations() or using uBit.display) have time to complete and display correctly.
