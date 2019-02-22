@@ -320,7 +320,7 @@ public class GraphingActivity extends AppCompatActivity {
     //Exports the current graph data to a CSV file
     private void exportCSV() throws IOException {
         //If there is data to export, and all lists have the same amount of data (so there has not been an error)
-        if (xList != null && yList != null && absoluteList != null && timeList != null && xList.size() == yList.size() && yList.size() == absoluteList.size() && absoluteList.size() == timeList.size()){
+        if (xList != null && yList != null && absoluteList != null && timeList != null && xList.size() != 0 && xList.size() == yList.size() && yList.size() == absoluteList.size() && absoluteList.size() == timeList.size()){
             if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){ //If external storage is available to write to
                 //Check the directory exists, if not then create it
                 File directory = new File(Environment.getExternalStorageDirectory() + DIRECTORY_NAME);
@@ -465,6 +465,9 @@ public class GraphingActivity extends AppCompatActivity {
         super.onDestroy();
         connectionService.setCharacteristicNotification(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, false);
         connectionService.setDescriptorValueAndWrite(ConnectionService.ACCELEROMETERSERVICE_SERVICE_UUID, ConnectionService.ACCELEROMETERDATA_CHARACTERISTIC_UUID, ConnectionService.CLIENT_CHARACTERISTIC_CONFIG, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+
+
+
         try{
             unbindService(serviceConnection);
         }

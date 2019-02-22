@@ -189,7 +189,7 @@ public class DeviceSelectActivity extends AppCompatActivity {
                     scanning = false;
                     button.setText(getString(R.string.start_scanning));
                 }
-                //Launch GraphingActivity, passing the name and address of the selected BluetoothDevice
+                //Launch InstructionsActivity, passing the name and address of the selected BluetoothDevice
                 Intent intent = new Intent(DeviceSelectActivity.this, InstructionsActivity.class);
                 intent.putExtra(ConnectionService.INTENT_DEVICE_ADDRESS, targetDevice.getAddress());
                 startActivity(intent);

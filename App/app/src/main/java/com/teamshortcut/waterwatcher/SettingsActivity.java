@@ -119,7 +119,7 @@ public class SettingsActivity extends AppCompatActivity {
                     bytes = bundle.getByteArray(ConnectionService.BUNDLE_VALUE);
 
                     if (characteristicUUID.equals(ConnectionService.UART_RX_CHARACTERISTIC_UUID)){ //If the received data is from the UART RX characteristic
-                       String ascii = "NULL";
+                        String ascii = "NULL";
                         try { //Convert from a bytearray to a string
                             ascii = new String(bytes,"US-ASCII");
                         }
