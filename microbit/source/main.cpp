@@ -219,6 +219,7 @@ void beginChecking(){
         }
         //Displays the current timer value to the micro:bit LEDs
         uBit.display.printAsync(timer, 250);
+        uBit.serial.send(timer);
     }
     //At this point the loop has ended and Connection Mode must have been initiated
     uBit.serial.send("\r\nLoop terminated.");
